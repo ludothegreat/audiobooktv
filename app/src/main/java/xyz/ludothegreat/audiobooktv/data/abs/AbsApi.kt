@@ -44,4 +44,19 @@ interface AbsApi {
 
     @GET("api/me/progress/{itemId}")
     suspend fun progress(@Path("itemId") itemId: String): MediaProgress
+
+    @POST("api/items/{itemId}/play")
+    suspend fun openPlayback(
+        @Path("itemId") itemId: String,
+        @Body body: xyz.ludothegreat.audiobooktv.data.abs.dto.PlayRequest,
+    ): xyz.ludothegreat.audiobooktv.data.abs.dto.PlaybackSession
+
+    @POST("api/session/{sessionId}/sync")
+    suspend fun syncSession(
+        @Path("sessionId") sessionId: String,
+        @Body body: xyz.ludothegreat.audiobooktv.data.abs.dto.SessionSyncRequest,
+    )
+
+    @POST("api/session/{sessionId}/close")
+    suspend fun closeSession(@Path("sessionId") sessionId: String)
 }

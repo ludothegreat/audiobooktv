@@ -19,7 +19,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.Button
@@ -40,6 +39,8 @@ enum class NavDestination(val labelRes: Int) {
 @Composable
 fun RootScaffold() {
     var selected by remember { mutableStateOf(NavDestination.Library) }
+    var currentBookId by remember { mutableStateOf<String?>(null) }
+    var currentCoverUrl by remember { mutableStateOf<String?>(null) }
 
     Row(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         NavRail(
@@ -53,8 +54,17 @@ fun RootScaffold() {
         )
         Box(modifier = Modifier.fillMaxSize()) {
             when (selected) {
-                NavDestination.NowPlaying -> PlayerScreen()
-                NavDestination.Library -> LibraryScreen()
+                NavDestination.NowPlaying -> PlayerScreen(
+                    itemId = currentBookId,
+                    coverUrl = currentCoverUrl,
+                )
+                NavDestination.Library -> LibraryScreen(
+                    onBookSelected = { book ->
+                        currentBookId = book.id
+                        currentCoverUrl = book.coverUrl
+                        selected = NavDestination.NowPlaying
+                    },
+                )
                 NavDestination.Settings -> SettingsScreen()
             }
         }

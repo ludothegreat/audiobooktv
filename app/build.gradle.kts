@@ -9,12 +9,12 @@ plugins {
 
 android {
     namespace = "xyz.ludothegreat.audiobooktv"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "xyz.ludothegreat.audiobooktv"
         minSdk = 28
-        targetSdk = 34
+        targetSdk = 35
         versionCode = 1
         versionName = "0.1.0"
     }
@@ -76,4 +76,9 @@ dependencies {
 
     implementation(libs.coil.compose)
     implementation(libs.coil.network.okhttp)
+
+    implementation(libs.media3.exoplayer)
+    implementation(libs.media3.session)
+    implementation(libs.media3.datasource.okhttp)
+    implementation(libs.guava.listenablefuture)
 }

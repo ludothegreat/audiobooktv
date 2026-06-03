@@ -104,3 +104,63 @@ data class MeResponse(
     val username: String? = null,
     val mediaProgress: List<MediaProgress> = emptyList(),
 )
+
+@Serializable
+data class PlayRequest(
+    val deviceInfo: DeviceInfo,
+    val supportedMimeTypes: List<String>,
+    val forceTranscode: Boolean = false,
+    val forceDirectPlay: Boolean = false,
+    val mediaPlayer: String = "audiobooktv",
+)
+
+@Serializable
+data class DeviceInfo(
+    val clientName: String,
+    val clientVersion: String,
+    val deviceName: String,
+    val manufacturer: String? = null,
+    val model: String? = null,
+    val sdkVersion: Int? = null,
+)
+
+@Serializable
+data class PlaybackSession(
+    val id: String,
+    val libraryItemId: String? = null,
+    val displayTitle: String? = null,
+    val displayAuthor: String? = null,
+    val coverPath: String? = null,
+    val duration: Double = 0.0,
+    val currentTime: Double = 0.0,
+    val playMethod: Int = 0,
+    val chapters: List<AbsChapter> = emptyList(),
+    val audioTracks: List<AbsAudioTrack> = emptyList(),
+)
+
+@Serializable
+data class AbsChapter(
+    val id: Int? = null,
+    val start: Double = 0.0,
+    val end: Double = 0.0,
+    val title: String? = null,
+)
+
+@Serializable
+data class AbsAudioTrack(
+    val index: Int = 0,
+    val ino: String? = null,
+    val title: String? = null,
+    val mimeType: String? = null,
+    val codec: String? = null,
+    val duration: Double = 0.0,
+    val startOffset: Double = 0.0,
+    val contentUrl: String,
+)
+
+@Serializable
+data class SessionSyncRequest(
+    val currentTime: Double,
+    val timeListened: Double,
+    val duration: Double,
+)
