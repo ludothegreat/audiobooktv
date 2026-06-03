@@ -7,6 +7,7 @@ import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.media3.common.PlaybackException
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
 import androidx.media3.session.MediaController
@@ -48,6 +49,7 @@ data class PlayerUiState(
     val bookmarkPanelVisible: Boolean = false,
     val bookmarks: List<Bookmark> = emptyList(),
     val bookmarksLoading: Boolean = false,
+    val isReconnecting: Boolean = false,
     val error: String? = null,
 )
 
@@ -72,6 +74,8 @@ class PlayerViewModel @Inject constructor(
     private var pendingLoad: Pair<String, String?>? = null
     private var syncJob: Job? = null
     private var pausedPollJob: Job? = null
+    private var retryJob: Job? = null
+    private var firstErrorWallClockMs: Long = 0
     private var lastSyncWallClockMs: Long = 0
 
     private val foregroundObserver = object : DefaultLifecycleObserver {
@@ -116,6 +120,20 @@ class PlayerViewModel @Inject constructor(
                     }
                     override fun onPlaybackParametersChanged(params: PlaybackParameters) {
                         _state.update { it.copy(speed = params.speed) }
+                    }
+                    override fun onPlayerError(error: PlaybackException) {
+                        handlePlayerError()
+                    }
+                    override fun onPlaybackStateChanged(playbackState: Int) {
+                        if (playbackState == Player.STATE_READY) {
+                            // Successful playback after error means we're back.
+                            firstErrorWallClockMs = 0
+                            retryJob?.cancel()
+                            retryJob = null
+                            if (_state.value.isReconnecting) {
+                                _state.update { it.copy(isReconnecting = false) }
+                            }
+                        }
                     }
                 })
                 _state.update {
@@ -378,6 +396,28 @@ class PlayerViewModel @Inject constructor(
         }
     }
 
+    private fun handlePlayerError() {
+        if (firstErrorWallClockMs == 0L) firstErrorWallClockMs = System.currentTimeMillis()
+        if (retryJob?.isActive == true) return
+        retryJob = viewModelScope.launch {
+            while (true) {
+                delay(RETRY_INTERVAL_MS)
+                val ctl = controller ?: continue
+                // After RECONNECTING_BANNER_AFTER_MS of failed retries, surface
+                // the small badge on the player so the user knows we haven't
+                // forgotten — but only then. Below that we stay silent.
+                val erroredFor = System.currentTimeMillis() - firstErrorWallClockMs
+                if (erroredFor >= RECONNECTING_BANNER_AFTER_MS && !_state.value.isReconnecting) {
+                    _state.update { it.copy(isReconnecting = true) }
+                }
+                // Kick the player. If still no network, onPlayerError fires
+                // again and we loop. If it succeeds, onPlaybackStateChanged
+                // (STATE_READY) clears the badge and cancels this job.
+                ctl.prepare()
+            }
+        }
+    }
+
     private fun startPausedPoll() {
         pausedPollJob?.cancel()
         pausedPollJob = viewModelScope.launch {
@@ -431,6 +471,8 @@ class PlayerViewModel @Inject constructor(
         ProcessLifecycleOwner.get().lifecycle.removeObserver(foregroundObserver)
         stopSyncTimer()
         stopPausedPoll()
+        retryJob?.cancel()
+        retryJob = null
         val sid = sessionId
         sessionId = null
         controller?.release()
@@ -450,5 +492,7 @@ class PlayerViewModel @Inject constructor(
         private const val SYNC_INTERVAL_MS = 10_000L
         private const val PAUSED_POLL_INTERVAL_MS = 15_000L
         private const val POSITION_DRIFT_TOLERANCE_SEC = 3.0
+        private const val RETRY_INTERVAL_MS = 5_000L
+        private const val RECONNECTING_BANNER_AFTER_MS = 30_000L
     }
 }

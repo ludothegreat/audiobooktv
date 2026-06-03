@@ -97,6 +97,14 @@ fun PlayerScreen(
                         color = colors.primary,
                         fontSize = 18.sp,
                     )
+                    if (state.isReconnecting) {
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = "Reconnecting...",
+                            color = colors.error,
+                            fontSize = 14.sp,
+                        )
+                    }
                 }
 
                 Column {

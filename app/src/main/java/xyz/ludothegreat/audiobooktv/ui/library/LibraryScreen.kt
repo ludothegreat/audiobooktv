@@ -41,13 +41,20 @@ fun LibraryScreen(
 
     Box(modifier = Modifier.fillMaxSize().background(colors.background)) {
         when {
-            state.loading -> StatusMessage("Loading...", colors)
-            state.error != null -> StatusMessage(state.error ?: "Unknown error.", colors, isError = true)
-            state.books.isEmpty() -> StatusMessage(
-                "Load books into your Audiobookshelf library.",
-                colors,
-            )
+            state.books.isEmpty() && state.loading -> StatusMessage("Loading...", colors)
+            state.books.isEmpty() && state.error != null ->
+                StatusMessage(state.error ?: "Unknown error.", colors, isError = true)
+            state.books.isEmpty() ->
+                StatusMessage("Load books into your Audiobookshelf library.", colors)
             else -> BookGrid(state.books, onBookSelected)
+        }
+        if (state.offline) {
+            Text(
+                text = "Offline",
+                color = colors.error,
+                fontSize = 14.sp,
+                modifier = Modifier.padding(16.dp),
+            )
         }
     }
 }
