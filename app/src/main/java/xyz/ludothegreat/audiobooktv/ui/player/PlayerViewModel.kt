@@ -4,6 +4,7 @@ import android.content.ComponentName
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
@@ -66,8 +67,16 @@ class PlayerViewModel @Inject constructor(
                     override fun onIsPlayingChanged(isPlaying: Boolean) {
                         _state.update { it.copy(isPlaying = isPlaying) }
                     }
+                    override fun onPlaybackParametersChanged(params: PlaybackParameters) {
+                        _state.update { it.copy(speed = params.speed) }
+                    }
                 })
-                _state.update { it.copy(isPlaying = ctl.isPlaying) }
+                _state.update {
+                    it.copy(
+                        isPlaying = ctl.isPlaying,
+                        speed = ctl.playbackParameters.speed,
+                    )
+                }
             }
             controllerReady.value = true
             pendingLoad?.let { (id, cover) ->

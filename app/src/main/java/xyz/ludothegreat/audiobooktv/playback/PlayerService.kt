@@ -7,6 +7,9 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
+import androidx.lifecycle.DefaultLifecycleObserver
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.ProcessLifecycleOwner
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -26,6 +29,19 @@ class PlayerService : MediaSessionService() {
     private var session: MediaSession? = null
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
+    private val backgroundObserver = object : DefaultLifecycleObserver {
+        override fun onStop(owner: LifecycleOwner) {
+            scope.launch {
+                if (appSettings.stopOnAppCloseSnapshot()) {
+                    val player = session?.player ?: return@launch
+                    player.pause()
+                    player.stop()
+                    stopSelf()
+                }
+            }
+        }
+    }
+
     override fun onCreate() {
         super.onCreate()
         val dataSourceFactory = OkHttpDataSource.Factory(apiProvider.okHttp())
@@ -41,6 +57,7 @@ class PlayerService : MediaSessionService() {
             .setHandleAudioBecomingNoisy(true)
             .build()
         session = MediaSession.Builder(this, player).build()
+        ProcessLifecycleOwner.get().lifecycle.addObserver(backgroundObserver)
     }
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? = session
@@ -63,6 +80,7 @@ class PlayerService : MediaSessionService() {
     }
 
     override fun onDestroy() {
+        ProcessLifecycleOwner.get().lifecycle.removeObserver(backgroundObserver)
         scope.cancel()
         session?.run {
             player.release()

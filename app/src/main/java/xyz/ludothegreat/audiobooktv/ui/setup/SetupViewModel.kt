@@ -29,6 +29,19 @@ class SetupViewModel @Inject constructor(
     private val _state = MutableStateFlow(SetupUiState())
     val state: StateFlow<SetupUiState> = _state.asStateFlow()
 
+    init {
+        // Reset the form whenever the user logs out so a re-used SetupViewModel
+        // doesn't carry stale serverUrl / username / password fields and any
+        // lingering submitting=true state from a previous session.
+        viewModelScope.launch {
+            sessionManager.state.collect { creds ->
+                if (creds == null && _state.value != SetupUiState()) {
+                    _state.value = SetupUiState()
+                }
+            }
+        }
+    }
+
     fun onUrlChange(value: String) = _state.update { it.copy(serverUrl = value, error = null) }
     fun onUsernameChange(value: String) = _state.update { it.copy(username = value, error = null) }
     fun onPasswordChange(value: String) = _state.update { it.copy(password = value, error = null) }
