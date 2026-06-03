@@ -33,10 +33,15 @@ class SessionManager @Inject constructor(
         if (username.isBlank()) return ConnectResult.Failure("Username is required.")
         if (password.isBlank()) return ConnectResult.Failure("Password is required.")
 
+        val isHttps = serverUrl.trim().startsWith("https://", ignoreCase = true)
+        val shouldPin = trustSelfSignedCert && isHttps
+
         return runCatching {
             // Phase 1: capture the cert fingerprint over a request that carries
             // NO credentials. Even if a MITM is in the path, only /ping leaks.
-            val pinnedFingerprint: String? = if (trustSelfSignedCert) {
+            // Only meaningful for https:// — http:// has no TLS handshake, so the
+            // trust toggle is silently ignored when scheme is plaintext.
+            val pinnedFingerprint: String? = if (shouldPin) {
                 var captured: String? = null
                 val probe = AbsClientFactory.build(
                     AbsTarget(baseUrl = serverUrl, trustCert = TrustMode.Capture { captured = it }),

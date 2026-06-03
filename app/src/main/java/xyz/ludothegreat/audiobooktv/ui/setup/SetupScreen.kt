@@ -34,10 +34,11 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.tv.material3.Button
-import androidx.tv.material3.ButtonDefaults
+import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.MaterialTheme
+import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
 
 @Composable
@@ -61,12 +62,12 @@ fun SetupScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(colors.background)
-            .padding(64.dp),
+            .padding(horizontal = 48.dp, vertical = 32.dp),
         contentAlignment = Alignment.Center,
     ) {
         Column(
             modifier = Modifier.width(720.dp),
-            verticalArrangement = Arrangement.spacedBy(20.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             Text(
                 text = "Connect to Audiobookshelf",
@@ -143,10 +144,19 @@ fun SetupScreen(
 
             Spacer(modifier = Modifier.height(4.dp))
 
-            Button(
+            state.error?.let { msg ->
+                Text(
+                    text = msg,
+                    color = colors.error,
+                    fontSize = 18.sp,
+                )
+            }
+
+            Surface(
                 onClick = { viewModel.submit(onSuccess = onConnected) },
                 enabled = !state.submitting,
-                colors = ButtonDefaults.colors(
+                shape = ClickableSurfaceDefaults.shape(shape = RoundedCornerShape(8.dp)),
+                colors = ClickableSurfaceDefaults.colors(
                     containerColor = colors.primary,
                     contentColor = colors.onPrimary,
                     focusedContainerColor = colors.primary,
@@ -154,17 +164,18 @@ fun SetupScreen(
                     disabledContainerColor = colors.surface,
                     disabledContentColor = colors.onSurfaceVariant,
                 ),
-                modifier = Modifier.fillMaxWidth().height(64.dp),
+                modifier = Modifier.fillMaxWidth().height(72.dp),
             ) {
-                Text(
-                    text = if (state.submitting) "Connecting..." else "Connect",
-                    color = colors.onPrimary,
-                    fontSize = 18.sp,
-                )
-            }
-
-            state.error?.let { msg ->
-                Text(text = msg, color = colors.error, fontSize = 16.sp)
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = if (state.submitting) "Connecting..." else "Connect",
+                        color = colors.onPrimary,
+                        fontSize = 22.sp,
+                    )
+                }
             }
         }
     }
