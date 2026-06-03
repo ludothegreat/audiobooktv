@@ -11,6 +11,10 @@ import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.MoreExecutors
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -52,6 +56,8 @@ class PlayerViewModel @Inject constructor(
     private var tracks: List<AbsAudioTrack> = emptyList()
     private var sessionId: String? = null
     private var pendingLoad: Pair<String, String?>? = null
+    private var syncJob: Job? = null
+    private var lastSyncWallClockMs: Long = 0
 
     init {
         bindController()
@@ -66,6 +72,16 @@ class PlayerViewModel @Inject constructor(
                 ctl.addListener(object : Player.Listener {
                     override fun onIsPlayingChanged(isPlaying: Boolean) {
                         _state.update { it.copy(isPlaying = isPlaying) }
+                        if (isPlaying) {
+                            lastSyncWallClockMs = System.currentTimeMillis()
+                            startSyncTimer()
+                        } else {
+                            stopSyncTimer()
+                            // Flush one last sync on pause so server sees the
+                            // current position even if the user stops in
+                            // mid-interval.
+                            syncOnce()
+                        }
                     }
                     override fun onPlaybackParametersChanged(params: PlaybackParameters) {
                         _state.update { it.copy(speed = params.speed) }
@@ -109,6 +125,13 @@ class PlayerViewModel @Inject constructor(
             pendingLoad = itemId to coverUrl
             _state.update { it.copy(loading = true, itemId = itemId, coverUrl = coverUrl, error = null) }
             return
+        }
+        // Close any previous server session before opening a new one for a
+        // different book so ABS doesn't hold a dangling session per device.
+        sessionId?.let { previous ->
+            sessionId = null
+            stopSyncTimer()
+            viewModelScope.launch { playbackRepository.closeSession(previous) }
         }
         _state.update { it.copy(loading = true, itemId = itemId, coverUrl = coverUrl, error = null) }
         viewModelScope.launch {
@@ -188,9 +211,57 @@ class PlayerViewModel @Inject constructor(
         return c?.title.orEmpty()
     }
 
+    private fun startSyncTimer() {
+        syncJob?.cancel()
+        syncJob = viewModelScope.launch {
+            while (true) {
+                delay(SYNC_INTERVAL_MS)
+                syncOnce()
+            }
+        }
+    }
+
+    private fun stopSyncTimer() {
+        syncJob?.cancel()
+        syncJob = null
+    }
+
+    private fun syncOnce() {
+        val sid = sessionId ?: return
+        val ctl = controller ?: return
+        val currentSec = absolutePositionSec(ctl).toDouble()
+        val now = System.currentTimeMillis()
+        val deltaSec = if (lastSyncWallClockMs > 0) ((now - lastSyncWallClockMs) / 1000.0) else 0.0
+        lastSyncWallClockMs = now
+        val duration = _state.value.durationSec.toDouble()
+        viewModelScope.launch {
+            playbackRepository.syncProgress(
+                sessionId = sid,
+                currentTimeSec = currentSec,
+                timeListenedSec = deltaSec.coerceAtLeast(0.0),
+                durationSec = duration,
+            )
+        }
+    }
+
     override fun onCleared() {
+        stopSyncTimer()
+        val sid = sessionId
+        sessionId = null
         controller?.release()
         controller = null
+        // Fire-and-forget close so ABS reflects the final position even when
+        // the ViewModel is torn down. viewModelScope is already cancelled so
+        // we spin up a short-lived scope just for this network call.
+        if (sid != null) {
+            CoroutineScope(Dispatchers.IO + SupervisorJob()).launch {
+                playbackRepository.closeSession(sid)
+            }
+        }
         super.onCleared()
+    }
+
+    companion object {
+        private const val SYNC_INTERVAL_MS = 10_000L
     }
 }

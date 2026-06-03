@@ -14,10 +14,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -37,10 +40,23 @@ enum class NavDestination(val labelRes: Int) {
 }
 
 @Composable
-fun RootScaffold() {
+fun RootScaffold(viewModel: RootViewModel = hiltViewModel()) {
     var selected by remember { mutableStateOf(NavDestination.Library) }
     var currentBookId by remember { mutableStateOf<String?>(null) }
     var currentCoverUrl by remember { mutableStateOf<String?>(null) }
+    var initialApplied by remember { mutableStateOf(false) }
+
+    val rootState by viewModel.state.collectAsState()
+    LaunchedEffect(rootState.resolved, initialApplied) {
+        if (rootState.resolved && !initialApplied) {
+            initialApplied = true
+            rootState.initial?.let { active ->
+                currentBookId = active.bookId
+                currentCoverUrl = active.coverUrl
+                selected = NavDestination.NowPlaying
+            }
+        }
+    }
 
     Row(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         NavRail(
