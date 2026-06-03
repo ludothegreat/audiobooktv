@@ -109,7 +109,7 @@ fun PlayerScreen(
                         onPlayPause = viewModel::togglePlayPause,
                         onSkipForward = viewModel::skipForward30,
                         onCycleSpeed = viewModel::openSpeedPanel,
-                        onBookmark = { /* Phase 8 */ },
+                        onBookmark = viewModel::openBookmarkPanel,
                         colors = colors,
                     )
                     state.error?.let { msg ->
@@ -125,6 +125,17 @@ fun PlayerScreen(
                 currentSpeed = state.speed,
                 onSelect = viewModel::setSpeed,
                 onDismiss = viewModel::closeSpeedPanel,
+            )
+        }
+
+        if (state.bookmarkPanelVisible) {
+            BookmarkPanel(
+                positionSec = state.positionSec,
+                bookmarks = state.bookmarks,
+                loading = state.bookmarksLoading,
+                onAddHere = viewModel::addBookmarkHere,
+                onJump = viewModel::jumpToBookmark,
+                onDismiss = viewModel::closeBookmarkPanel,
             )
         }
     }

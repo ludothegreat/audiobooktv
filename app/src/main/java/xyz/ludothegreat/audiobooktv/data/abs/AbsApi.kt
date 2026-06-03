@@ -59,4 +59,10 @@ interface AbsApi {
 
     @POST("api/session/{sessionId}/close")
     suspend fun closeSession(@Path("sessionId") sessionId: String)
+
+    @POST("api/me/item/{itemId}/bookmark")
+    suspend fun createBookmark(
+        @Path("itemId") itemId: String,
+        @Body body: xyz.ludothegreat.audiobooktv.data.abs.dto.CreateBookmarkRequest,
+    ): xyz.ludothegreat.audiobooktv.data.abs.dto.AbsBookmark
 }

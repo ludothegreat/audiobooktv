@@ -103,6 +103,21 @@ data class MeResponse(
     val id: String? = null,
     val username: String? = null,
     val mediaProgress: List<MediaProgress> = emptyList(),
+    val bookmarks: List<AbsBookmark> = emptyList(),
+)
+
+@Serializable
+data class AbsBookmark(
+    val libraryItemId: String,
+    val time: Double,
+    val title: String? = null,
+    val createdAt: Long = 0,
+)
+
+@Serializable
+data class CreateBookmarkRequest(
+    val time: Double,
+    val title: String,
 )
 
 @Serializable

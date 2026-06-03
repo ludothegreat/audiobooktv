@@ -27,6 +27,8 @@ import kotlinx.coroutines.launch
 import xyz.ludothegreat.audiobooktv.data.abs.dto.AbsChapter
 import xyz.ludothegreat.audiobooktv.data.abs.dto.AbsAudioTrack
 import xyz.ludothegreat.audiobooktv.data.settings.SpeedStore
+import xyz.ludothegreat.audiobooktv.domain.Bookmark
+import xyz.ludothegreat.audiobooktv.playback.BookmarksRepository
 import xyz.ludothegreat.audiobooktv.playback.PlaybackRepository
 import xyz.ludothegreat.audiobooktv.playback.PlayerService
 import javax.inject.Inject
@@ -43,6 +45,9 @@ data class PlayerUiState(
     val isPlaying: Boolean = false,
     val speed: Float = 1.0f,
     val speedPanelVisible: Boolean = false,
+    val bookmarkPanelVisible: Boolean = false,
+    val bookmarks: List<Bookmark> = emptyList(),
+    val bookmarksLoading: Boolean = false,
     val error: String? = null,
 )
 
@@ -52,6 +57,7 @@ val SPEED_PRESETS: List<Float> = listOf(0.75f, 1.0f, 1.25f, 1.5f, 1.75f, 2.0f)
 class PlayerViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val playbackRepository: PlaybackRepository,
+    private val bookmarksRepository: BookmarksRepository,
     private val speedStore: SpeedStore,
 ) : ViewModel() {
 
@@ -262,6 +268,50 @@ class PlayerViewModel @Inject constructor(
 
     fun closeSpeedPanel() {
         _state.update { it.copy(speedPanelVisible = false) }
+    }
+
+    fun openBookmarkPanel() {
+        val id = _state.value.itemId ?: return
+        _state.update { it.copy(bookmarkPanelVisible = true, bookmarksLoading = true) }
+        viewModelScope.launch {
+            val items = bookmarksRepository.fetchForItem(id)
+            _state.update { it.copy(bookmarks = items, bookmarksLoading = false) }
+        }
+    }
+
+    fun closeBookmarkPanel() {
+        _state.update { it.copy(bookmarkPanelVisible = false) }
+    }
+
+    fun addBookmarkHere() {
+        val id = _state.value.itemId ?: return
+        val ctl = controller ?: return
+        val timeSec = absolutePositionSec(ctl)
+        val label = formatTimestamp(timeSec)
+        viewModelScope.launch {
+            val created = bookmarksRepository.create(id, timeSec, label) ?: return@launch
+            _state.update {
+                val merged = (it.bookmarks + created).sortedBy { b -> b.timeSec }
+                it.copy(bookmarks = merged)
+            }
+        }
+    }
+
+    fun jumpToBookmark(bookmark: Bookmark) {
+        seekToAbsoluteMs(bookmark.timeSec * 1000)
+        _state.update {
+            it.copy(
+                positionSec = bookmark.timeSec,
+                chapterTitle = currentChapterTitle(bookmark.timeSec.toDouble()),
+            )
+        }
+    }
+
+    private fun formatTimestamp(seconds: Long): String {
+        val h = seconds / 3600
+        val m = (seconds % 3600) / 60
+        val s = seconds % 60
+        return if (h > 0) "%d:%02d:%02d".format(h, m, s) else "%d:%02d".format(m, s)
     }
 
     private fun absolutePositionSec(ctl: MediaController): Long {
