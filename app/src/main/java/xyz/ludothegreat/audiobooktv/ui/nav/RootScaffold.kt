@@ -48,7 +48,7 @@ fun RootScaffold() {
             onSelect = { selected = it },
             modifier = Modifier
                 .fillMaxHeight()
-                .width(240.dp)
+                .width(160.dp)
                 .background(MaterialTheme.colorScheme.surface)
                 .padding(horizontal = 16.dp, vertical = 24.dp),
         )

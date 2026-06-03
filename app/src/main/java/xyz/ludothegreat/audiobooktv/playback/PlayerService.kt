@@ -8,15 +8,23 @@ import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 import xyz.ludothegreat.audiobooktv.data.abs.AbsApiProvider
+import xyz.ludothegreat.audiobooktv.data.settings.AppSettings
 import javax.inject.Inject
 
 @AndroidEntryPoint
 class PlayerService : MediaSessionService() {
 
     @Inject lateinit var apiProvider: AbsApiProvider
+    @Inject lateinit var appSettings: AppSettings
 
     private var session: MediaSession? = null
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     override fun onCreate() {
         super.onCreate()
@@ -38,14 +46,24 @@ class PlayerService : MediaSessionService() {
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? = session
 
     override fun onTaskRemoved(rootIntent: android.content.Intent?) {
-        val player = session?.player
-        if (player != null && !player.playWhenReady) {
-            stopSelf()
+        scope.launch {
+            val stop = appSettings.stopOnAppCloseSnapshot()
+            val player = session?.player
+            if (player == null) {
+                stopSelf()
+                return@launch
+            }
+            if (stop || !player.playWhenReady) {
+                player.stop()
+                stopSelf()
+            }
+            // else: keep playing in the background
         }
         super.onTaskRemoved(rootIntent)
     }
 
     override fun onDestroy() {
+        scope.cancel()
         session?.run {
             player.release()
             release()

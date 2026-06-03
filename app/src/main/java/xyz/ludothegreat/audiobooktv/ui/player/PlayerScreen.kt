@@ -63,14 +63,14 @@ fun PlayerScreen(
             return@Box
         }
 
-        Row(modifier = Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(48.dp)) {
+        Row(modifier = Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(32.dp)) {
             AsyncImage(
                 model = state.coverUrl ?: coverUrl,
                 contentDescription = state.title,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .fillMaxHeight()
-                    .width(380.dp)
+                    .width(280.dp)
                     .clip(RoundedCornerShape(8.dp))
                     .background(colors.surface),
             )
@@ -160,13 +160,12 @@ private fun ControlRow(
     onBookmark: () -> Unit,
     colors: androidx.tv.material3.ColorScheme,
 ) {
-    Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
         ControlButton(label = "« 30", onClick = onSkipBack, colors = colors)
         ControlButton(label = if (isPlaying) "Pause" else "Play", onClick = onPlayPause, emphasised = true, colors = colors)
         ControlButton(label = "30 »", onClick = onSkipForward, colors = colors)
-        Spacer(modifier = Modifier.width(16.dp))
         ControlButton(label = formatSpeed(speed), onClick = onCycleSpeed, colors = colors)
-        ControlButton(label = "Bookmark", onClick = onBookmark, colors = colors)
+        ControlButton(label = "Mark", onClick = onBookmark, colors = colors)
     }
 }
 
