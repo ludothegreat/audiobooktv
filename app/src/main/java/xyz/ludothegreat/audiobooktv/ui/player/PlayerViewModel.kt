@@ -2,6 +2,9 @@ package xyz.ludothegreat.audiobooktv.ui.player
 
 import android.content.ComponentName
 import android.content.Context
+import androidx.lifecycle.DefaultLifecycleObserver
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.media3.common.PlaybackParameters
@@ -59,9 +62,19 @@ class PlayerViewModel @Inject constructor(
     private var syncJob: Job? = null
     private var lastSyncWallClockMs: Long = 0
 
+    private val foregroundObserver = object : DefaultLifecycleObserver {
+        override fun onStart(owner: LifecycleOwner) {
+            // App returned to foreground. If another client (ABS web, phone)
+            // has advanced the position while we were away, pull it in.
+            val id = _state.value.itemId ?: return
+            refreshFromServer(id)
+        }
+    }
+
     init {
         bindController()
         startTicker()
+        ProcessLifecycleOwner.get().lifecycle.addObserver(foregroundObserver)
     }
 
     private fun bindController() {
@@ -120,7 +133,13 @@ class PlayerViewModel @Inject constructor(
     }
 
     fun load(itemId: String, coverUrl: String?) {
-        if (_state.value.itemId == itemId && (controller?.mediaItemCount ?: 0) > 0) return
+        if (_state.value.itemId == itemId && (controller?.mediaItemCount ?: 0) > 0) {
+            // Same book already loaded — don't rebuild the playlist, but do
+            // pull the latest position from the server in case another client
+            // advanced it while we were elsewhere.
+            refreshFromServer(itemId)
+            return
+        }
         if (!controllerReady.value) {
             pendingLoad = itemId to coverUrl
             _state.update { it.copy(loading = true, itemId = itemId, coverUrl = coverUrl, error = null) }
@@ -211,6 +230,27 @@ class PlayerViewModel @Inject constructor(
         return c?.title.orEmpty()
     }
 
+    private fun refreshFromServer(itemId: String) {
+        // Only pull a remote position if the local player isn't actively
+        // playing — yanking the head backward mid-listen is worse than a
+        // small drift, and any active play is already syncing to ABS itself.
+        val ctl = controller ?: return
+        if (ctl.isPlaying) return
+        viewModelScope.launch {
+            val serverSec = playbackRepository.fetchSavedPositionSec(itemId) ?: return@launch
+            val localSec = absolutePositionSec(ctl).toDouble()
+            if (kotlin.math.abs(serverSec - localSec) > POSITION_DRIFT_TOLERANCE_SEC) {
+                seekToAbsoluteMs((serverSec * 1000).toLong())
+                _state.update {
+                    it.copy(
+                        positionSec = serverSec.toLong(),
+                        chapterTitle = currentChapterTitle(serverSec),
+                    )
+                }
+            }
+        }
+    }
+
     private fun startSyncTimer() {
         syncJob?.cancel()
         syncJob = viewModelScope.launch {
@@ -245,6 +285,7 @@ class PlayerViewModel @Inject constructor(
     }
 
     override fun onCleared() {
+        ProcessLifecycleOwner.get().lifecycle.removeObserver(foregroundObserver)
         stopSyncTimer()
         val sid = sessionId
         sessionId = null
@@ -263,5 +304,6 @@ class PlayerViewModel @Inject constructor(
 
     companion object {
         private const val SYNC_INTERVAL_MS = 10_000L
+        private const val POSITION_DRIFT_TOLERANCE_SEC = 3.0
     }
 }

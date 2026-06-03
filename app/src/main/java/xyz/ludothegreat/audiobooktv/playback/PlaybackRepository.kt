@@ -60,6 +60,10 @@ class PlaybackRepository @Inject constructor(
         return PlaybackPrep(session = playback, mediaItems = mediaItems, resumePositionMs = resumeMs)
     }
 
+    suspend fun fetchSavedPositionSec(itemId: String): Double? = runCatching {
+        apiProvider.get().progress(itemId).currentTime
+    }.getOrNull()
+
     suspend fun syncProgress(sessionId: String, currentTimeSec: Double, timeListenedSec: Double, durationSec: Double) {
         runCatching {
             apiProvider.get().syncSession(
