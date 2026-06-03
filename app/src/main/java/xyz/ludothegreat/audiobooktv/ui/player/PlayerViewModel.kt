@@ -83,6 +83,7 @@ class PlayerViewModel @Inject constructor(
         val future = MediaController.Builder(context, token).buildAsync()
         future.addListener({
             controller = future.get().also { ctl ->
+                if (!ctl.isPlaying) startPausedPoll()
                 ctl.addListener(object : Player.Listener {
                     override fun onIsPlayingChanged(isPlaying: Boolean) {
                         _state.update { it.copy(isPlaying = isPlaying) }
@@ -184,6 +185,9 @@ class PlayerViewModel @Inject constructor(
                             isPlaying = ctl.isPlaying,
                         )
                     }
+                    // Land paused -> start polling so external client changes
+                    // converge without requiring the user to press Play.
+                    if (!ctl.isPlaying) startPausedPoll()
                 }
                 .onFailure { t ->
                     _state.update { it.copy(loading = false, error = t.message ?: "Failed to open playback.") }
