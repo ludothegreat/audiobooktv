@@ -108,10 +108,7 @@ fun PlayerScreen(
                         onSkipBack = viewModel::skipBack30,
                         onPlayPause = viewModel::togglePlayPause,
                         onSkipForward = viewModel::skipForward30,
-                        onCycleSpeed = {
-                            val next = nextSpeed(state.speed)
-                            viewModel.setSpeed(next)
-                        },
+                        onCycleSpeed = viewModel::openSpeedPanel,
                         onBookmark = { /* Phase 8 */ },
                         colors = colors,
                     )
@@ -121,6 +118,14 @@ fun PlayerScreen(
                     }
                 }
             }
+        }
+
+        if (state.speedPanelVisible) {
+            SpeedPanel(
+                currentSpeed = state.speed,
+                onSelect = viewModel::setSpeed,
+                onDismiss = viewModel::closeSpeedPanel,
+            )
         }
     }
 }
@@ -203,8 +208,3 @@ private fun formatSpeed(speed: Float): String {
     return "${s}x"
 }
 
-private val SPEEDS = listOf(0.75f, 1.0f, 1.25f, 1.5f, 1.75f, 2.0f)
-private fun nextSpeed(current: Float): Float {
-    val idx = SPEEDS.indexOfFirst { it == current }
-    return if (idx == -1) 1.0f else SPEEDS[(idx + 1) % SPEEDS.size]
-}

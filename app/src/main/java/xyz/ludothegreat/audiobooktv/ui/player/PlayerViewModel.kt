@@ -26,6 +26,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import xyz.ludothegreat.audiobooktv.data.abs.dto.AbsChapter
 import xyz.ludothegreat.audiobooktv.data.abs.dto.AbsAudioTrack
+import xyz.ludothegreat.audiobooktv.data.settings.SpeedStore
 import xyz.ludothegreat.audiobooktv.playback.PlaybackRepository
 import xyz.ludothegreat.audiobooktv.playback.PlayerService
 import javax.inject.Inject
@@ -41,13 +42,17 @@ data class PlayerUiState(
     val durationSec: Long = 0,
     val isPlaying: Boolean = false,
     val speed: Float = 1.0f,
+    val speedPanelVisible: Boolean = false,
     val error: String? = null,
 )
+
+val SPEED_PRESETS: List<Float> = listOf(0.75f, 1.0f, 1.25f, 1.5f, 1.75f, 2.0f)
 
 @HiltViewModel
 class PlayerViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val playbackRepository: PlaybackRepository,
+    private val speedStore: SpeedStore,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(PlayerUiState())
@@ -174,6 +179,8 @@ class PlayerViewModel @Inject constructor(
                     ctl.setMediaItems(prep.mediaItems, false)
                     ctl.prepare()
                     seekToAbsoluteMs(prep.resumePositionMs)
+                    val savedSpeed = speedStore.get(itemId) ?: 1.0f
+                    ctl.setPlaybackSpeed(savedSpeed)
                     _state.update {
                         it.copy(
                             loading = false,
@@ -183,6 +190,7 @@ class PlayerViewModel @Inject constructor(
                             positionSec = prep.resumePositionMs / 1000,
                             chapterTitle = currentChapterTitle(prep.resumePositionMs / 1000.0),
                             isPlaying = ctl.isPlaying,
+                            speed = savedSpeed,
                         )
                     }
                     // Land paused -> start polling so external client changes
@@ -244,6 +252,16 @@ class PlayerViewModel @Inject constructor(
     fun setSpeed(speed: Float) {
         controller?.setPlaybackSpeed(speed)
         _state.update { it.copy(speed = speed) }
+        val id = _state.value.itemId ?: return
+        viewModelScope.launch { speedStore.set(id, speed) }
+    }
+
+    fun openSpeedPanel() {
+        _state.update { it.copy(speedPanelVisible = true) }
+    }
+
+    fun closeSpeedPanel() {
+        _state.update { it.copy(speedPanelVisible = false) }
     }
 
     private fun absolutePositionSec(ctl: MediaController): Long {
