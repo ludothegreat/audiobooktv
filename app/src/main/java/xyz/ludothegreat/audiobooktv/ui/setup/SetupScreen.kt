@@ -14,13 +14,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -38,7 +35,10 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.tv.material3.Button
+import androidx.tv.material3.ButtonDefaults
 import androidx.tv.material3.MaterialTheme
+import androidx.tv.material3.Text
 
 @Composable
 fun SetupScreen(
@@ -137,6 +137,7 @@ fun SetupScreen(
                 Text(
                     text = "Trust this server's certificate (skip TLS verification)",
                     color = colors.onBackground,
+                    fontSize = 16.sp,
                 )
             }
 
@@ -145,19 +146,25 @@ fun SetupScreen(
             Button(
                 onClick = { viewModel.submit(onSuccess = onConnected) },
                 enabled = !state.submitting,
-                colors = ButtonDefaults.buttonColors(
+                colors = ButtonDefaults.colors(
                     containerColor = colors.primary,
                     contentColor = colors.onPrimary,
+                    focusedContainerColor = colors.primary,
+                    focusedContentColor = colors.onPrimary,
                     disabledContainerColor = colors.surface,
                     disabledContentColor = colors.onSurfaceVariant,
                 ),
-                modifier = Modifier.fillMaxWidth().height(56.dp),
+                modifier = Modifier.fillMaxWidth().height(64.dp),
             ) {
-                Text(text = if (state.submitting) "Connecting..." else "Connect")
+                Text(
+                    text = if (state.submitting) "Connecting..." else "Connect",
+                    color = colors.onPrimary,
+                    fontSize = 18.sp,
+                )
             }
 
             state.error?.let { msg ->
-                Text(text = msg, color = colors.error)
+                Text(text = msg, color = colors.error, fontSize = 16.sp)
             }
         }
     }

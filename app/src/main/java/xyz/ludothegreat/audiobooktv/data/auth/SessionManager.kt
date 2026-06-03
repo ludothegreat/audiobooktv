@@ -33,29 +33,42 @@ class SessionManager @Inject constructor(
         if (username.isBlank()) return ConnectResult.Failure("Username is required.")
         if (password.isBlank()) return ConnectResult.Failure("Password is required.")
 
-        var capturedFingerprint: String? = null
-        val trust = if (trustSelfSignedCert) {
-            TrustMode.Capture { capturedFingerprint = it }
-        } else {
-            TrustMode.Strict
-        }
-
-        val probe = AbsClientFactory.build(AbsTarget(baseUrl = serverUrl, trustCert = trust))
-
         return runCatching {
-            probe.ping().also {
-                if (it.success != true) error("server did not return success on /ping")
+            // Phase 1: capture the cert fingerprint over a request that carries
+            // NO credentials. Even if a MITM is in the path, only /ping leaks.
+            val pinnedFingerprint: String? = if (trustSelfSignedCert) {
+                var captured: String? = null
+                val probe = AbsClientFactory.build(
+                    AbsTarget(baseUrl = serverUrl, trustCert = TrustMode.Capture { captured = it }),
+                )
+                probe.ping().also {
+                    if (it.success != true) error("server did not return success on /ping")
+                }
+                captured ?: error("could not capture server certificate fingerprint")
+            } else {
+                null
             }
-            val status = probe.status()
+
+            // Phase 2: rebuild with the appropriate trust mode and send the rest
+            // (including the password) only after the cert is locked down.
+            val verifiedTrust: TrustMode = pinnedFingerprint?.let { TrustMode.Pinned(it) } ?: TrustMode.Strict
+            val client = AbsClientFactory.build(AbsTarget(baseUrl = serverUrl, trustCert = verifiedTrust))
+
+            if (pinnedFingerprint == null) {
+                // Strict mode: still ping to surface unreachable-server errors early.
+                client.ping().also {
+                    if (it.success != true) error("server did not return success on /ping")
+                }
+            }
+            val status = client.status()
             val version = status.serverVersion
                 ?: return ConnectResult.Failure("Server did not report a version.")
-            val supported = isVersionSupported(version)
-            if (!supported) {
+            if (!isVersionSupported(version)) {
                 return ConnectResult.Failure(
                     "Audiobookshelf $version is not supported. Need $MIN_SERVER_VERSION or newer.",
                 )
             }
-            val login = probe.login(LoginRequest(username = username, password = password))
+            val login = client.login(LoginRequest(username = username, password = password))
             val user = login.user ?: return ConnectResult.Failure(
                 login.error ?: "Login failed.",
             )
@@ -67,7 +80,7 @@ class SessionManager @Inject constructor(
                 username = user.username,
                 token = token,
                 userId = user.id,
-                pinnedCertSha256 = if (trustSelfSignedCert) capturedFingerprint else null,
+                pinnedCertSha256 = pinnedFingerprint,
             )
             store.save(creds)
             _state.value = creds

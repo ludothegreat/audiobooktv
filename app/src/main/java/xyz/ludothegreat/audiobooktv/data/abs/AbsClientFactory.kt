@@ -45,18 +45,20 @@ object AbsClientFactory {
         target.token?.takeIf { it.isNotBlank() }?.let { builder.addInterceptor(authInterceptor(it)) }
         when (val mode = target.trustCert) {
             TrustMode.Strict -> Unit
-            TrustMode.AcceptAll -> applyTrust(builder, AcceptAllTrustManager())
-            is TrustMode.Pinned -> applyTrust(builder, PinnedCertTrustManager(mode.sha256Hex))
-            is TrustMode.Capture -> applyTrust(builder, fingerprintCapturingTrustManager(mode.onCapture))
+            TrustMode.AcceptAll -> applyTrust(builder, AcceptAllTrustManager(), bypassHostname = true)
+            is TrustMode.Pinned -> applyTrust(builder, PinnedCertTrustManager(mode.sha256Hex), bypassHostname = false)
+            is TrustMode.Capture -> applyTrust(builder, fingerprintCapturingTrustManager(mode.onCapture), bypassHostname = true)
         }
         return builder.build()
     }
 
-    private fun applyTrust(builder: OkHttpClient.Builder, manager: X509TrustManager) {
+    private fun applyTrust(builder: OkHttpClient.Builder, manager: X509TrustManager, bypassHostname: Boolean) {
         val ctx = SSLContext.getInstance("TLS")
         ctx.init(null, arrayOf(manager), SecureRandom())
         builder.sslSocketFactory(ctx.socketFactory, manager)
-        builder.hostnameVerifier { _, _ -> true }
+        if (bypassHostname) {
+            builder.hostnameVerifier { _, _ -> true }
+        }
     }
 
     private fun authInterceptor(token: String) = Interceptor { chain ->
@@ -68,11 +70,9 @@ object AbsClientFactory {
 
     private fun normalizeBaseUrl(raw: String): String {
         val trimmed = raw.trim()
-        val withScheme = if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
-            trimmed
-        } else {
-            "http://$trimmed"
+        require(trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+            "URL must start with http:// or https://"
         }
-        return if (withScheme.endsWith("/")) withScheme else "$withScheme/"
+        return if (trimmed.endsWith("/")) trimmed else "$trimmed/"
     }
 }
