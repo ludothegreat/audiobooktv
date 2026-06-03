@@ -246,6 +246,7 @@ class PlayerViewModel @Inject constructor(
         val ctl = controller ?: return
         val target = (absolutePositionSec(ctl) - 30).coerceAtLeast(0)
         seekToAbsoluteMs(target * 1000)
+        pushPositionToServer(target.toDouble())
     }
 
     fun skipForward30() {
@@ -253,6 +254,7 @@ class PlayerViewModel @Inject constructor(
         val total = _state.value.durationSec
         val target = (absolutePositionSec(ctl) + 30).coerceAtMost(total)
         seekToAbsoluteMs(target * 1000)
+        pushPositionToServer(target.toDouble())
     }
 
     fun setSpeed(speed: Float) {
@@ -303,6 +305,25 @@ class PlayerViewModel @Inject constructor(
             it.copy(
                 positionSec = bookmark.timeSec,
                 chapterTitle = currentChapterTitle(bookmark.timeSec.toDouble()),
+            )
+        }
+        pushPositionToServer(bookmark.timeSec.toDouble())
+    }
+
+    /**
+     * User-initiated seek: tell the server this is our new position so the
+     * pre-play refresh in togglePlayPause doesn't snap us back to a stale
+     * "where you last paused" value when the user hits Play next.
+     */
+    private fun pushPositionToServer(timeSec: Double) {
+        val sid = sessionId ?: return
+        val dur = _state.value.durationSec.toDouble()
+        viewModelScope.launch {
+            playbackRepository.syncProgress(
+                sessionId = sid,
+                currentTimeSec = timeSec,
+                timeListenedSec = 0.0,
+                durationSec = dur,
             )
         }
     }
