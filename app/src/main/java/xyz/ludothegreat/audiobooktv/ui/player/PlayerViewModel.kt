@@ -60,6 +60,7 @@ class PlayerViewModel @Inject constructor(
     private var sessionId: String? = null
     private var pendingLoad: Pair<String, String?>? = null
     private var syncJob: Job? = null
+    private var pausedPollJob: Job? = null
     private var lastSyncWallClockMs: Long = 0
 
     private val foregroundObserver = object : DefaultLifecycleObserver {
@@ -86,6 +87,7 @@ class PlayerViewModel @Inject constructor(
                     override fun onIsPlayingChanged(isPlaying: Boolean) {
                         _state.update { it.copy(isPlaying = isPlaying) }
                         if (isPlaying) {
+                            stopPausedPoll()
                             lastSyncWallClockMs = System.currentTimeMillis()
                             startSyncTimer()
                         } else {
@@ -94,6 +96,10 @@ class PlayerViewModel @Inject constructor(
                             // current position even if the user stops in
                             // mid-interval.
                             syncOnce()
+                            // Start polling so another client's progress
+                            // shows up here without needing the user to
+                            // background the app.
+                            startPausedPoll()
                         }
                     }
                     override fun onPlaybackParametersChanged(params: PlaybackParameters) {
@@ -187,7 +193,35 @@ class PlayerViewModel @Inject constructor(
 
     fun togglePlayPause() {
         val ctl = controller ?: return
-        if (ctl.isPlaying) ctl.pause() else ctl.play()
+        if (ctl.isPlaying) {
+            ctl.pause()
+            return
+        }
+        val id = _state.value.itemId
+        if (id == null) {
+            ctl.play()
+            return
+        }
+        // Pre-play check: pull the latest server position. If another client
+        // (ABS web on a phone, another TV) advanced past our local position,
+        // start from there instead of replaying.
+        viewModelScope.launch {
+            val serverSec = playbackRepository.fetchSavedPositionSec(id)
+            val ctlNow = controller ?: return@launch
+            if (serverSec != null) {
+                val localSec = absolutePositionSec(ctlNow).toDouble()
+                if (kotlin.math.abs(serverSec - localSec) > POSITION_DRIFT_TOLERANCE_SEC) {
+                    seekToAbsoluteMs((serverSec * 1000).toLong())
+                    _state.update {
+                        it.copy(
+                            positionSec = serverSec.toLong(),
+                            chapterTitle = currentChapterTitle(serverSec),
+                        )
+                    }
+                }
+            }
+            controller?.play()
+        }
     }
 
     fun skipBack30() {
@@ -251,6 +285,22 @@ class PlayerViewModel @Inject constructor(
         }
     }
 
+    private fun startPausedPoll() {
+        pausedPollJob?.cancel()
+        pausedPollJob = viewModelScope.launch {
+            while (true) {
+                delay(PAUSED_POLL_INTERVAL_MS)
+                val id = _state.value.itemId ?: continue
+                refreshFromServer(id)
+            }
+        }
+    }
+
+    private fun stopPausedPoll() {
+        pausedPollJob?.cancel()
+        pausedPollJob = null
+    }
+
     private fun startSyncTimer() {
         syncJob?.cancel()
         syncJob = viewModelScope.launch {
@@ -287,6 +337,7 @@ class PlayerViewModel @Inject constructor(
     override fun onCleared() {
         ProcessLifecycleOwner.get().lifecycle.removeObserver(foregroundObserver)
         stopSyncTimer()
+        stopPausedPoll()
         val sid = sessionId
         sessionId = null
         controller?.release()
@@ -304,6 +355,7 @@ class PlayerViewModel @Inject constructor(
 
     companion object {
         private const val SYNC_INTERVAL_MS = 10_000L
+        private const val PAUSED_POLL_INTERVAL_MS = 15_000L
         private const val POSITION_DRIFT_TOLERANCE_SEC = 3.0
     }
 }
