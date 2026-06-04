@@ -27,6 +27,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import xyz.ludothegreat.audiobooktv.data.abs.dto.AbsChapter
 import xyz.ludothegreat.audiobooktv.data.abs.dto.AbsAudioTrack
+import xyz.ludothegreat.audiobooktv.data.log.DiagnosticLog
 import xyz.ludothegreat.audiobooktv.data.settings.SpeedStore
 import xyz.ludothegreat.audiobooktv.domain.Bookmark
 import xyz.ludothegreat.audiobooktv.playback.BookmarksRepository
@@ -61,6 +62,7 @@ class PlayerViewModel @Inject constructor(
     private val playbackRepository: PlaybackRepository,
     private val bookmarksRepository: BookmarksRepository,
     private val speedStore: SpeedStore,
+    private val diagnosticLog: DiagnosticLog,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(PlayerUiState())
@@ -122,6 +124,7 @@ class PlayerViewModel @Inject constructor(
                         _state.update { it.copy(speed = params.speed) }
                     }
                     override fun onPlayerError(error: PlaybackException) {
+                        diagnosticLog.w("Player", "ExoPlayer error: ${error.errorCodeName} ${error.message}", error)
                         handlePlayerError()
                     }
                     override fun onPlaybackStateChanged(playbackState: Int) {

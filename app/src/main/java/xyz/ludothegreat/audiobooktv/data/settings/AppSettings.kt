@@ -20,14 +20,21 @@ class AppSettings @Inject constructor(
     private val store = context.settingsDataStore
 
     val stopOnAppClose: Flow<Boolean> = store.data.map { it[KEY_STOP_ON_APP_CLOSE] ?: false }
+    val diagnosticLogEnabled: Flow<Boolean> = store.data.map { it[KEY_DIAGNOSTIC_LOG] ?: false }
 
     suspend fun setStopOnAppClose(value: Boolean) {
         store.edit { it[KEY_STOP_ON_APP_CLOSE] = value }
     }
 
+    suspend fun setDiagnosticLogEnabled(value: Boolean) {
+        store.edit { it[KEY_DIAGNOSTIC_LOG] = value }
+    }
+
     suspend fun stopOnAppCloseSnapshot(): Boolean = stopOnAppClose.first()
+    suspend fun diagnosticLogEnabledSnapshot(): Boolean = diagnosticLogEnabled.first()
 
     companion object {
         private val KEY_STOP_ON_APP_CLOSE = booleanPreferencesKey("stop_on_app_close")
+        private val KEY_DIAGNOSTIC_LOG = booleanPreferencesKey("diagnostic_log")
     }
 }

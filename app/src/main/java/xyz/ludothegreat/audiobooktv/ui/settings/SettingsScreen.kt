@@ -50,7 +50,34 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
                 colors = colors,
             )
 
+            ToggleRow(
+                label = "Diagnostic log",
+                description = "Write a rolling log to the app's external files directory. Off by default.",
+                checked = state.diagnosticLogEnabled,
+                onChange = viewModel::setDiagnosticLogEnabled,
+                colors = colors,
+            )
+
             Spacer(modifier = Modifier.height(12.dp))
+
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Button(
+                    onClick = { viewModel.refreshLibrary() },
+                    colors = ButtonDefaults.colors(
+                        containerColor = colors.surface,
+                        contentColor = colors.onSurface,
+                        focusedContainerColor = colors.primary,
+                        focusedContentColor = colors.onPrimary,
+                    ),
+                    modifier = Modifier.width(220.dp).height(52.dp),
+                ) {
+                    Text(text = "Refresh library", fontSize = 16.sp)
+                }
+                state.refreshFeedback?.let { msg ->
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Text(text = msg, color = colors.primary, fontSize = 14.sp)
+                }
+            }
 
             Button(
                 onClick = { viewModel.logout() },

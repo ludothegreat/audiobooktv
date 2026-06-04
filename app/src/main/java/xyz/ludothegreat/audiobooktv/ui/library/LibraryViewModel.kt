@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import xyz.ludothegreat.audiobooktv.data.cache.LibraryCache
+import xyz.ludothegreat.audiobooktv.data.cache.LibraryRefreshBus
 import xyz.ludothegreat.audiobooktv.domain.Book
 import xyz.ludothegreat.audiobooktv.domain.LibraryRepository
 import javax.inject.Inject
@@ -24,6 +25,7 @@ data class LibraryUiState(
 class LibraryViewModel @Inject constructor(
     private val repository: LibraryRepository,
     private val cache: LibraryCache,
+    private val refreshBus: LibraryRefreshBus,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(LibraryUiState(loading = true))
@@ -31,6 +33,9 @@ class LibraryViewModel @Inject constructor(
 
     init {
         loadCachedThenRefresh()
+        viewModelScope.launch {
+            refreshBus.events.collect { refresh() }
+        }
     }
 
     private fun loadCachedThenRefresh() {
