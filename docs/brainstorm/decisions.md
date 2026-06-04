@@ -14,8 +14,8 @@
 | # | Question | Answer |
 |---|----------|--------|
 | 4 | UI framework? | **Native Kotlin + Jetpack Compose for TV.** Modern, lean APK, first-class D-pad/focus, runs on Fire OS 7+. Audio engine: **Media3 (ExoPlayer)** — handles M4B chapters, MP3, FLAC, gapless, speed adjustment natively. |
-| 5 | Source of books? | **Audiobookshelf backend** via its REST API. We do not browse SMB/WebDAV directly. ABS handles library scan, metadata, cover art, chapters, resume position, bookmarks, multi-user. App = thin TV client over ABS API. operator to run ABS as a new Docker stack on host pointed at `/hoard/books/audio`. |
-| 6 | Connectivity model? | **App is connectivity-agnostic.** User enters any reachable ABS URL (`http://` or `https://`) at setup. App does not care if it's LAN, Tailscale, public+SSL, or Cloudflare Access — server admin is responsible for how the URL resolves and for transport security. App must accept both `http` and `https`, including self-signed certs (the operator's setup runs internal-only). |
+| 5 | Source of books? | **Audiobookshelf backend** via its REST API. We do not browse SMB/WebDAV directly. ABS handles library scan, metadata, cover art, chapters, resume position, bookmarks, multi-user. App = thin TV client over ABS API. Operator runs ABS as a Docker stack pointed at their audiobook library. |
+| 6 | Connectivity model? | **App is connectivity-agnostic.** User enters any reachable ABS URL (`http://` or `https://`) at setup. App does not care if it's LAN, Tailscale, public+SSL, or Cloudflare Access — server admin is responsible for how the URL resolves and for transport security. App must accept both `http` and `https`, including self-signed certs (typical setup is internal-only). |
 
 ## User Experience
 
@@ -39,7 +39,7 @@
 | # | Question | Answer |
 |---|----------|--------|
 | 19 | User-facing name? | **audiobooktv.** Keep boring. No branding work. |
-| 20 | Android package name (app ID)? | **`xyz.ludothegreat.audiobooktv`** — uses the operator's owned domain, globally unique, stable for life. |
+| 20 | Android package name (app ID)? | **`xyz.ludothegreat.audiobooktv`** — uses an owned domain, globally unique, stable for life. |
 | 21 | App icon? | **Placeholder for v1.** Simple mark later. Banner 320x180 + icon 512x512 required by Android TV launcher. |
 
 ## Legal & Operations

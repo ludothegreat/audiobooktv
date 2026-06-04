@@ -10,3 +10,6 @@ captures/
 *.aab
 *.keystore
 .kotlin/
+
+# Personal/internal project notes — kept locally, never published
+HANDOFF.md
