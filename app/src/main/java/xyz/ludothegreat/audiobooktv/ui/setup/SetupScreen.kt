@@ -97,7 +97,7 @@ fun SetupScreen(
                 value = state.serverUrl,
                 onValueChange = viewModel::onUrlChange,
                 label = { Text("Server URL") },
-                placeholder = { Text("http://your-abs-host:13378") },
+                placeholder = { Text("https://audiobookshelf.example.com") },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Next),
                 keyboardActions = KeyboardActions(onNext = { userFocus.requestFocus() }),
