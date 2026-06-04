@@ -157,15 +157,17 @@ class PlayerViewModel @Inject constructor(
     private fun startTicker() {
         viewModelScope.launch {
             while (true) {
-                delay(250)
+                delay(500)
                 val ctl = controller ?: continue
                 if (ctl.duration <= 0) continue
                 val absSec = absolutePositionSec(ctl)
-                _state.update {
-                    it.copy(
-                        positionSec = absSec,
-                        chapterTitle = currentChapterTitle(absSec.toDouble()),
-                    )
+                val current = _state.value
+                val newChapter = currentChapterTitle(absSec.toDouble())
+                // Only emit a state change when something the user can see has
+                // actually changed. Whole-second positionSec means 3 of every 4
+                // ticks at the old 250ms interval were pure no-op recompositions.
+                if (absSec != current.positionSec || newChapter != current.chapterTitle) {
+                    _state.update { it.copy(positionSec = absSec, chapterTitle = newChapter) }
                 }
             }
         }

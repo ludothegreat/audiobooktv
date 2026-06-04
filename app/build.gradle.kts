@@ -21,8 +21,12 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            // Sideload-only project: use the debug signing key so anyone with
+            // gradle can build a working installable APK without secrets.
+            signingConfig = signingConfigs.getByName("debug")
         }
     }
 
