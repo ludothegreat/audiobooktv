@@ -11,6 +11,7 @@ import kotlinx.coroutines.launch
 import xyz.ludothegreat.audiobooktv.data.auth.SessionManager
 import xyz.ludothegreat.audiobooktv.data.cache.LibraryRefreshBus
 import xyz.ludothegreat.audiobooktv.data.settings.AppSettings
+import xyz.ludothegreat.audiobooktv.ui.theme.AppTheme
 import javax.inject.Inject
 
 data class SettingsUiState(
@@ -18,6 +19,7 @@ data class SettingsUiState(
     val username: String = "",
     val stopOnAppClose: Boolean = false,
     val diagnosticLogEnabled: Boolean = false,
+    val selectedTheme: AppTheme = AppTheme.Gruvbox,
     val refreshFeedback: String? = null,
     val versionName: String = "",
 )
@@ -51,6 +53,15 @@ class SettingsViewModel @Inject constructor(
                 _state.update { it.copy(diagnosticLogEnabled = v) }
             }
         }
+        viewModelScope.launch {
+            appSettings.selectedTheme.collect { v ->
+                _state.update { it.copy(selectedTheme = v) }
+            }
+        }
+    }
+
+    fun setTheme(theme: AppTheme) {
+        viewModelScope.launch { appSettings.setSelectedTheme(theme) }
     }
 
     fun setStopOnAppClose(value: Boolean) {

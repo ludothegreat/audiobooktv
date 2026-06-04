@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -29,6 +30,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.compose.foundation.BorderStroke
+import androidx.tv.material3.Border
 import androidx.tv.material3.Button
 import androidx.tv.material3.ButtonDefaults
 import androidx.tv.material3.MaterialTheme
@@ -202,13 +205,21 @@ private fun ControlButton(
 ) {
     Button(
         onClick = onClick,
+        shape = ButtonDefaults.shape(shape = RoundedCornerShape(8.dp)),
         colors = ButtonDefaults.colors(
             containerColor = if (emphasised) colors.primary else colors.surface,
             contentColor = if (emphasised) colors.onPrimary else colors.onSurface,
-            focusedContainerColor = colors.primary,
-            focusedContentColor = colors.onPrimary,
+            focusedContainerColor = if (emphasised) colors.primary else colors.surface,
+            focusedContentColor = if (emphasised) colors.onPrimary else colors.onSurface,
         ),
-        modifier = Modifier.height(52.dp),
+        border = ButtonDefaults.border(
+            focusedBorder = Border(
+                border = BorderStroke(2.dp, colors.secondary),
+                shape = RoundedCornerShape(8.dp),
+            ),
+        ),
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 0.dp),
+        modifier = Modifier.height(40.dp),
     ) {
         Text(text = label, fontSize = 16.sp, color = Color.Unspecified)
     }

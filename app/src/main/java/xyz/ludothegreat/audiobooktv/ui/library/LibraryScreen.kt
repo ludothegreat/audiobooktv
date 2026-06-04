@@ -103,7 +103,7 @@ private fun BookTile(book: Book, onClick: () -> Unit) {
         scale = androidx.tv.material3.ClickableSurfaceDefaults.scale(focusedScale = 1.08f),
         border = androidx.tv.material3.ClickableSurfaceDefaults.border(
             focusedBorder = androidx.tv.material3.Border(
-                border = androidx.compose.foundation.BorderStroke(width = 3.dp, color = colors.primary),
+                border = androidx.compose.foundation.BorderStroke(width = 3.dp, color = colors.secondary),
                 shape = RoundedCornerShape(6.dp),
             ),
         ),

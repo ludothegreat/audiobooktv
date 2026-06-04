@@ -25,6 +25,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.BorderStroke
+import androidx.tv.material3.Border
 import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Surface
@@ -84,10 +86,16 @@ fun SpeedPanel(
                         },
                         shape = ClickableSurfaceDefaults.shape(shape = RoundedCornerShape(8.dp)),
                         colors = ClickableSurfaceDefaults.colors(
-                            containerColor = if (isCurrent) colors.primaryContainer else colors.background,
-                            contentColor = if (isCurrent) colors.onPrimaryContainer else colors.onSurface,
-                            focusedContainerColor = colors.primary,
-                            focusedContentColor = colors.onPrimary,
+                            containerColor = if (isCurrent) colors.primary else colors.background,
+                            contentColor = if (isCurrent) colors.onPrimary else colors.onSurface,
+                            focusedContainerColor = if (isCurrent) colors.primary else colors.background,
+                            focusedContentColor = if (isCurrent) colors.onPrimary else colors.onSurface,
+                        ),
+                        border = ClickableSurfaceDefaults.border(
+                            focusedBorder = Border(
+                                border = BorderStroke(2.dp, colors.secondary),
+                                shape = RoundedCornerShape(8.dp),
+                            ),
                         ),
                         modifier = mod,
                     ) {

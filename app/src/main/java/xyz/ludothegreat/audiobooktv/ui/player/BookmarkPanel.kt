@@ -28,6 +28,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.BorderStroke
+import androidx.tv.material3.Border
 import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Surface
@@ -81,10 +83,16 @@ fun BookmarkPanel(
                     },
                     shape = ClickableSurfaceDefaults.shape(shape = RoundedCornerShape(8.dp)),
                     colors = ClickableSurfaceDefaults.colors(
-                        containerColor = colors.primaryContainer,
-                        contentColor = colors.onPrimaryContainer,
+                        containerColor = colors.primary,
+                        contentColor = colors.onPrimary,
                         focusedContainerColor = colors.primary,
                         focusedContentColor = colors.onPrimary,
+                    ),
+                    border = ClickableSurfaceDefaults.border(
+                        focusedBorder = Border(
+                            border = BorderStroke(2.dp, colors.secondary),
+                            shape = RoundedCornerShape(8.dp),
+                        ),
                     ),
                     modifier = Modifier
                         .fillMaxWidth()
@@ -153,8 +161,14 @@ private fun BookmarkRow(
         colors = ClickableSurfaceDefaults.colors(
             containerColor = colors.background,
             contentColor = colors.onSurface,
-            focusedContainerColor = colors.primary,
-            focusedContentColor = colors.onPrimary,
+            focusedContainerColor = colors.background,
+            focusedContentColor = colors.onSurface,
+        ),
+        border = ClickableSurfaceDefaults.border(
+            focusedBorder = Border(
+                border = BorderStroke(2.dp, colors.secondary),
+                shape = RoundedCornerShape(8.dp),
+            ),
         ),
         modifier = Modifier.fillMaxWidth().height(48.dp),
     ) {

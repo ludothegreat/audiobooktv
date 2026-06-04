@@ -36,6 +36,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.border
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
+import androidx.compose.ui.graphics.Color
+import androidx.tv.material3.Border
 import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Surface
@@ -79,9 +85,9 @@ fun SetupScreen(
                 focusedTextColor = colors.onBackground,
                 unfocusedTextColor = colors.onBackground,
                 cursorColor = colors.primary,
-                focusedBorderColor = colors.primary,
+                focusedBorderColor = colors.secondary,
                 unfocusedBorderColor = colors.onSurfaceVariant,
-                focusedLabelColor = colors.primary,
+                focusedLabelColor = colors.secondary,
                 unfocusedLabelColor = colors.onSurfaceVariant,
                 focusedContainerColor = colors.surface,
                 unfocusedContainerColor = colors.surface,
@@ -124,16 +130,30 @@ fun SetupScreen(
             )
 
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Switch(
-                    checked = state.trustSelfSignedCert,
-                    onCheckedChange = viewModel::onTrustToggle,
-                    colors = SwitchDefaults.colors(
-                        checkedTrackColor = colors.primary,
-                        checkedThumbColor = colors.onPrimary,
-                        uncheckedTrackColor = colors.surface,
-                        uncheckedThumbColor = colors.onSurfaceVariant,
-                    ),
-                )
+                val trustInteractionSource = remember { MutableInteractionSource() }
+                val trustFocused by trustInteractionSource.collectIsFocusedAsState()
+                Box(
+                    modifier = Modifier
+                        .padding(4.dp)
+                        .border(
+                            width = 2.dp,
+                            color = if (trustFocused) colors.secondary else Color.Transparent,
+                            shape = RoundedCornerShape(50),
+                        )
+                        .padding(4.dp),
+                ) {
+                    Switch(
+                        checked = state.trustSelfSignedCert,
+                        onCheckedChange = viewModel::onTrustToggle,
+                        interactionSource = trustInteractionSource,
+                        colors = SwitchDefaults.colors(
+                            checkedTrackColor = colors.primary,
+                            checkedThumbColor = colors.onPrimary,
+                            uncheckedTrackColor = colors.surface,
+                            uncheckedThumbColor = colors.onSurfaceVariant,
+                        ),
+                    )
+                }
                 Spacer(modifier = Modifier.width(12.dp))
                 Text(
                     text = "Trust this server's certificate (skip TLS verification)",
@@ -163,6 +183,12 @@ fun SetupScreen(
                     focusedContentColor = colors.onPrimary,
                     disabledContainerColor = colors.surface,
                     disabledContentColor = colors.onSurfaceVariant,
+                ),
+                border = ClickableSurfaceDefaults.border(
+                    focusedBorder = Border(
+                        border = BorderStroke(2.dp, colors.secondary),
+                        shape = RoundedCornerShape(8.dp),
+                    ),
                 ),
                 modifier = Modifier.fillMaxWidth().height(72.dp),
             ) {

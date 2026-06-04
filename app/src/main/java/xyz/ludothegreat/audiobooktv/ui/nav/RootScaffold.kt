@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -24,10 +25,13 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.tv.material3.Border
 import androidx.tv.material3.Button
 import androidx.tv.material3.ButtonDefaults
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
+import androidx.compose.foundation.BorderStroke
 import xyz.ludothegreat.audiobooktv.R
 import xyz.ludothegreat.audiobooktv.ui.library.LibraryScreen
 import xyz.ludothegreat.audiobooktv.ui.player.PlayerScreen
@@ -64,9 +68,9 @@ fun RootScaffold(viewModel: RootViewModel = hiltViewModel()) {
             onSelect = { selected = it },
             modifier = Modifier
                 .fillMaxHeight()
-                .width(160.dp)
-                .background(MaterialTheme.colorScheme.surface)
-                .padding(horizontal = 16.dp, vertical = 24.dp),
+                .width(120.dp)
+                .background(MaterialTheme.colorScheme.surfaceVariant)
+                .padding(PaddingValues(start = 16.dp, top = 24.dp, bottom = 24.dp)),
         )
         Box(modifier = Modifier.fillMaxSize()) {
             when (selected) {
@@ -98,7 +102,9 @@ private fun NavRail(
             val isSelected = dest == selected
             Button(
                 onClick = { onSelect(dest) },
-                shape = ButtonDefaults.shape(shape = RoundedCornerShape(8.dp)),
+                shape = ButtonDefaults.shape(
+                    shape = RoundedCornerShape(topStart = 8.dp, bottomStart = 8.dp),
+                ),
                 colors = if (isSelected) {
                     ButtonDefaults.colors(
                         containerColor = MaterialTheme.colorScheme.primary,
@@ -110,13 +116,24 @@ private fun NavRail(
                     ButtonDefaults.colors(
                         containerColor = MaterialTheme.colorScheme.surface,
                         contentColor = MaterialTheme.colorScheme.onSurface,
-                        focusedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                        focusedContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        focusedContainerColor = MaterialTheme.colorScheme.surface,
+                        focusedContentColor = MaterialTheme.colorScheme.onSurface,
                     )
                 },
-                modifier = Modifier.fillMaxWidth().height(48.dp),
+                border = ButtonDefaults.border(
+                    focusedBorder = Border(
+                        border = BorderStroke(2.dp, MaterialTheme.colorScheme.secondary),
+                        shape = RoundedCornerShape(topStart = 8.dp, bottomStart = 8.dp),
+                    ),
+                ),
+                modifier = Modifier.fillMaxWidth().height(36.dp),
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
             ) {
-                Text(text = stringResource(dest.labelRes))
+                Text(
+                    text = stringResource(dest.labelRes),
+                    fontSize = 14.sp,
+                    lineHeight = 14.sp,
+                )
             }
             Spacer(modifier = Modifier.height(0.dp))
         }
