@@ -1,5 +1,8 @@
 # audiobooktv
 
+> [!IMPORTANT]
+> **This app is built for TV remotes, not touch.** Every screen is laid out around D-pad focus and navigation. Installing it on a phone or tablet will work, but the UI assumes a remote and there is no touch-control equivalent on the roadmap. Use it on a Fire TV, Google/Android TV, or Onn streaming box.
+
 A dead-simple Android TV audiobook player. Backed by an [Audiobookshelf](https://www.audiobookshelf.org/) server. Open it, pick a book, hit play.
 
 Built for sideload on Fire TV, Google/Android TV, and Onn streaming boxes. No store listings, no telemetry, no accounts beyond your existing ABS user.

@@ -27,7 +27,10 @@ class MainActivity : ComponentActivity() {
             AudiobooktvTheme(theme = theme) {
                 val credentials by sessionManager.state.collectAsState()
                 if (credentials == null) {
-                    SetupScreen(onConnected = { /* state flow flips, recomposes into RootScaffold */ })
+                    SetupScreen(
+                        onConnected = { /* state flow flips, recomposes into RootScaffold */ },
+                        onExit = { finish() },
+                    )
                 } else {
                     RootScaffold()
                 }

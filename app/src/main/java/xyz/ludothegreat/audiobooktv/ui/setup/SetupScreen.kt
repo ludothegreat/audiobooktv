@@ -50,6 +50,7 @@ import androidx.tv.material3.Text
 @Composable
 fun SetupScreen(
     onConnected: () -> Unit,
+    onExit: () -> Unit = {},
     viewModel: SetupViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
@@ -172,35 +173,68 @@ fun SetupScreen(
                 )
             }
 
-            Surface(
-                onClick = { viewModel.submit(onSuccess = onConnected) },
-                enabled = !state.submitting,
-                shape = ClickableSurfaceDefaults.shape(shape = RoundedCornerShape(8.dp)),
-                colors = ClickableSurfaceDefaults.colors(
-                    containerColor = colors.primary,
-                    contentColor = colors.onPrimary,
-                    focusedContainerColor = colors.primary,
-                    focusedContentColor = colors.onPrimary,
-                    disabledContainerColor = colors.surface,
-                    disabledContentColor = colors.onSurfaceVariant,
-                ),
-                border = ClickableSurfaceDefaults.border(
-                    focusedBorder = Border(
-                        border = BorderStroke(2.dp, colors.secondary),
-                        shape = RoundedCornerShape(8.dp),
-                    ),
-                ),
-                modifier = Modifier.fillMaxWidth().height(72.dp),
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center,
+                Surface(
+                    onClick = { viewModel.submit(onSuccess = onConnected) },
+                    enabled = !state.submitting,
+                    shape = ClickableSurfaceDefaults.shape(shape = RoundedCornerShape(8.dp)),
+                    colors = ClickableSurfaceDefaults.colors(
+                        containerColor = colors.primary,
+                        contentColor = colors.onPrimary,
+                        focusedContainerColor = colors.primary,
+                        focusedContentColor = colors.onPrimary,
+                        disabledContainerColor = colors.surface,
+                        disabledContentColor = colors.onSurfaceVariant,
+                    ),
+                    border = ClickableSurfaceDefaults.border(
+                        focusedBorder = Border(
+                            border = BorderStroke(2.dp, colors.secondary),
+                            shape = RoundedCornerShape(8.dp),
+                        ),
+                    ),
+                    modifier = Modifier.weight(1f).height(72.dp),
                 ) {
-                    Text(
-                        text = if (state.submitting) "Connecting..." else "Connect",
-                        color = colors.onPrimary,
-                        fontSize = 22.sp,
-                    )
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            text = if (state.submitting) "Connecting..." else "Connect",
+                            color = colors.onPrimary,
+                            fontSize = 22.sp,
+                        )
+                    }
+                }
+                Surface(
+                    onClick = onExit,
+                    shape = ClickableSurfaceDefaults.shape(shape = RoundedCornerShape(8.dp)),
+                    colors = ClickableSurfaceDefaults.colors(
+                        containerColor = colors.surface,
+                        contentColor = colors.onSurface,
+                        focusedContainerColor = colors.surface,
+                        focusedContentColor = colors.onSurface,
+                    ),
+                    border = ClickableSurfaceDefaults.border(
+                        focusedBorder = Border(
+                            border = BorderStroke(2.dp, colors.secondary),
+                            shape = RoundedCornerShape(8.dp),
+                        ),
+                    ),
+                    modifier = Modifier.width(180.dp).height(72.dp),
+                ) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            text = "Exit",
+                            color = colors.onSurface,
+                            fontSize = 22.sp,
+                        )
+                    }
                 }
             }
         }
