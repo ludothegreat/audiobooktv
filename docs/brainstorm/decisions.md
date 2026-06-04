@@ -5,7 +5,7 @@
 | # | Question | Answer |
 |---|----------|--------|
 | 0 | What is this? | **Dead-simple Android TV audiobook player.** Open app → pick book → hit play. Auto-saves position on stop, resumes on next open. Only extras: speed control + bookmarks. Backend: Audiobookshelf. Target user: self + technical friends. "Mom-grade" = low-friction for the *operator*, not literal accessibility — readable text UI is fine. |
-| 1 | Why a separate app instead of extending the-source-desktop-player? | **Forced split — the-source-desktop-player is PySide6/python-mpv, neither runs on Android TV.** A TV app needs a TV-native codebase. Will be independent (reads its own remote source), not a the-source-desktop-player client. |
+| 1 | Why not extend an existing desktop audiobook player? | **Forced split — typical desktop players (PySide6/python-mpv-based, etc.) don't run on Android TV.** A TV app needs a TV-native codebase. This is a standalone Android TV client. |
 | 2 | Target hardware? | **Fire TV (Fire OS), built-in Google/Android TV, Onn boxes.** As many devices as possible. Implies: minSdk low enough for Fire OS 7 (API 28), must run on weak hardware (Onn = 1-2GB RAM, MediaTek). |
 | 3 | Distribution? | **Sideload APK only.** No Play Store, no Amazon Appstore. Audience = self + friends (technical enough to sideload). No install-UX worry for now. |
 
@@ -40,7 +40,7 @@
 |---|----------|--------|
 | 19 | User-facing name? | **audiobooktv.** Keep boring. No branding work. |
 | 20 | Android package name (app ID)? | **`xyz.ludothegreat.audiobooktv`** — uses an owned domain, globally unique, stable for life. |
-| 21 | App icon? | **Placeholder for v1.** Simple mark later. Banner 320x180 + icon 512x512 required by Android TV launcher. |
+| 21 | App icon? | **Placeholder for v1.** Banner 320x180 + icon 512x512 required by Android TV launcher. |
 
 ## Legal & Operations
 

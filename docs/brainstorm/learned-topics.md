@@ -4,7 +4,7 @@ Topics that emerged during this brainstorm that aren't in the default template â
 
 ## Architecture
 - **Existing-tool-versus-new-app check**: Before designing a new client, ask whether an existing project in the user's workspace already solves the same problem and can be extended instead. Relevant when: the brainstorm topic overlaps an in-progress project in MEMORY.md.
-  - Discovered: 2026-06-03, audiobooktv (the-source-desktop-player overlap).
+  - Discovered: 2026-06-03, audiobooktv.
 - **Backend leverage**: For media/library apps, ask whether a self-hostable server (Audiobookshelf, Jellyfin, Navidrome, Calibre-web) can be the backend so the client becomes a thin UI. Relevant when: project involves library, metadata, multi-device progress, or multi-user.
   - Discovered: 2026-06-03, audiobooktv (ABS chosen over raw file backends).
 
