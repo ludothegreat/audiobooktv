@@ -16,6 +16,17 @@ import javax.inject.Singleton
 
 private val Context.libraryCacheStore by preferencesDataStore(name = "audiobooktv-library-cache")
 
+/**
+ * Persistence surface for the offline-launch library snapshot. Concrete
+ * production binding is [LibraryCache] (DataStore); tests use an
+ * in-memory fake.
+ */
+interface LibraryCacheStorage {
+    suspend fun read(): List<Book>
+    suspend fun write(books: List<Book>)
+    suspend fun clear()
+}
+
 @Serializable
 private data class CachedBook(
     val id: String,
@@ -33,23 +44,23 @@ private data class CachedBook(
 @Singleton
 class LibraryCache @Inject constructor(
     @ApplicationContext private val context: Context,
-) {
+) : LibraryCacheStorage {
     private val store = context.libraryCacheStore
     private val json = Json { ignoreUnknownKeys = true }
 
-    suspend fun read(): List<Book> {
+    override suspend fun read(): List<Book> {
         val raw = store.data.map { it[KEY_BOOKS] }.first() ?: return emptyList()
         return runCatching {
             json.decodeFromString<List<CachedBook>>(raw).map { it.toBook() }
         }.getOrDefault(emptyList())
     }
 
-    suspend fun write(books: List<Book>) {
+    override suspend fun write(books: List<Book>) {
         val encoded = json.encodeToString(books.map { it.toCached() })
         store.edit { it[KEY_BOOKS] = encoded }
     }
 
-    suspend fun clear() {
+    override suspend fun clear() {
         store.edit { it.remove(KEY_BOOKS) }
     }
 

@@ -33,6 +33,8 @@ import xyz.ludothegreat.audiobooktv.domain.Bookmark
 import xyz.ludothegreat.audiobooktv.playback.BookmarksRepository
 import xyz.ludothegreat.audiobooktv.playback.PlaybackRepository
 import xyz.ludothegreat.audiobooktv.playback.PlayerService
+import xyz.ludothegreat.audiobooktv.playback.PositionMath
+import xyz.ludothegreat.audiobooktv.playback.RetryPolicy
 import javax.inject.Inject
 
 data class PlayerUiState(
@@ -358,27 +360,19 @@ class PlayerViewModel @Inject constructor(
         return if (h > 0) "%d:%02d:%02d".format(h, m, s) else "%d:%02d".format(m, s)
     }
 
-    private fun absolutePositionSec(ctl: MediaController): Long {
-        val trackOffsetSec = tracks.getOrNull(ctl.currentMediaItemIndex)?.startOffset ?: 0.0
-        return ((ctl.currentPosition / 1000.0) + trackOffsetSec).toLong()
-    }
+    private fun absolutePositionSec(ctl: MediaController): Long = PositionMath.absolutePositionSec(
+        currentPositionMs = ctl.currentPosition,
+        currentMediaItemIndex = ctl.currentMediaItemIndex,
+        tracks = tracks,
+    )
 
     private fun seekToAbsoluteMs(absoluteMs: Long) {
         val ctl = controller ?: return
-        if (tracks.isEmpty()) {
-            ctl.seekTo(absoluteMs)
-            return
-        }
-        val absoluteSec = absoluteMs / 1000.0
-        val track = tracks.indexOfLast { it.startOffset <= absoluteSec }.coerceAtLeast(0)
-        val withinTrackSec = absoluteSec - (tracks[track].startOffset)
-        ctl.seekTo(track, (withinTrackSec * 1000).toLong().coerceAtLeast(0))
+        val target = PositionMath.trackForAbsolute(absoluteMs, tracks)
+        ctl.seekTo(target.mediaItemIndex, target.positionMs)
     }
 
-    private fun currentChapterTitle(absSec: Double): String {
-        val c = chapters.firstOrNull { absSec >= it.start && absSec < it.end }
-        return c?.title.orEmpty()
-    }
+    private fun currentChapterTitle(absSec: Double): String = PositionMath.currentChapterTitle(absSec, chapters)
 
     private fun refreshFromServer(itemId: String) {
         // Only pull a remote position if the local player isn't actively
@@ -406,13 +400,17 @@ class PlayerViewModel @Inject constructor(
         if (retryJob?.isActive == true) return
         retryJob = viewModelScope.launch {
             while (true) {
-                delay(RETRY_INTERVAL_MS)
+                delay(RetryPolicy.RETRY_INTERVAL_MS)
                 val ctl = controller ?: continue
-                // After RECONNECTING_BANNER_AFTER_MS of failed retries, surface
-                // the small badge on the player so the user knows we haven't
-                // forgotten — but only then. Below that we stay silent.
-                val erroredFor = System.currentTimeMillis() - firstErrorWallClockMs
-                if (erroredFor >= RECONNECTING_BANNER_AFTER_MS && !_state.value.isReconnecting) {
+                // After RetryPolicy.RECONNECTING_BANNER_AFTER_MS of failed
+                // retries, surface the small badge on the player so the user
+                // knows we haven't forgotten -- but only then. Below that we
+                // stay silent.
+                val shouldShow = RetryPolicy.shouldShowReconnecting(
+                    firstErrorWallClockMs = firstErrorWallClockMs,
+                    nowMs = System.currentTimeMillis(),
+                )
+                if (shouldShow && !_state.value.isReconnecting) {
                     _state.update { it.copy(isReconnecting = true) }
                 }
                 // Kick the player. If still no network, onPlayerError fires
@@ -497,7 +495,5 @@ class PlayerViewModel @Inject constructor(
         private const val SYNC_INTERVAL_MS = 10_000L
         private const val PAUSED_POLL_INTERVAL_MS = 15_000L
         private const val POSITION_DRIFT_TOLERANCE_SEC = 3.0
-        private const val RETRY_INTERVAL_MS = 5_000L
-        private const val RECONNECTING_BANNER_AFTER_MS = 30_000L
     }
 }

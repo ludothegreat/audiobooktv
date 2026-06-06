@@ -9,7 +9,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import xyz.ludothegreat.audiobooktv.domain.Book
-import xyz.ludothegreat.audiobooktv.domain.LibraryRepository
+import xyz.ludothegreat.audiobooktv.domain.LibraryBookSource
 import javax.inject.Inject
 
 data class InitialActive(
@@ -24,7 +24,7 @@ data class RootUiState(
 
 @HiltViewModel
 class RootViewModel @Inject constructor(
-    private val libraryRepository: LibraryRepository,
+    private val libraryRepository: LibraryBookSource,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(RootUiState())

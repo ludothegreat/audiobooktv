@@ -17,10 +17,24 @@ data class Credentials(
     val pinnedCertSha256: String? = null,
 )
 
+/**
+ * Abstracts persistence of [Credentials] so [SessionManager] can be unit
+ * tested without an Android Context. The concrete production binding is
+ * [CredentialStore] (EncryptedSharedPreferences); test fakes implement
+ * this directly.
+ */
+interface CredentialStorage {
+    fun load(): Credentials?
+
+    fun save(creds: Credentials)
+
+    fun clear()
+}
+
 @Singleton
 class CredentialStore @Inject constructor(
     @ApplicationContext context: Context,
-) {
+) : CredentialStorage {
     private val prefs: SharedPreferences = EncryptedSharedPreferences.create(
         context,
         FILE_NAME,
@@ -29,7 +43,7 @@ class CredentialStore @Inject constructor(
         EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
     )
 
-    fun load(): Credentials? {
+    override fun load(): Credentials? {
         val url = prefs.getString(KEY_URL, null) ?: return null
         val user = prefs.getString(KEY_USER, null) ?: return null
         val token = prefs.getString(KEY_TOKEN, null) ?: return null
@@ -38,7 +52,7 @@ class CredentialStore @Inject constructor(
         return Credentials(url, user, token, id, pin)
     }
 
-    fun save(creds: Credentials) {
+    override fun save(creds: Credentials) {
         prefs.edit {
             putString(KEY_URL, creds.serverUrl)
             putString(KEY_USER, creds.username)
@@ -52,7 +66,7 @@ class CredentialStore @Inject constructor(
         }
     }
 
-    fun clear() {
+    override fun clear() {
         prefs.edit { clear() }
     }
 

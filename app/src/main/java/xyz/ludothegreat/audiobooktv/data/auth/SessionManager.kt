@@ -16,7 +16,7 @@ sealed class ConnectResult {
 
 @Singleton
 class SessionManager @Inject constructor(
-    private val store: CredentialStore,
+    private val store: CredentialStorage,
 ) {
     private val _state = MutableStateFlow(store.load())
     val state: StateFlow<Credentials?> = _state
@@ -68,9 +68,10 @@ class SessionManager @Inject constructor(
             val status = client.status()
             val version = status.serverVersion
                 ?: return ConnectResult.Failure("Server did not report a version.")
-            if (!isVersionSupported(version)) {
+            if (!VersionGate.isSupported(version)) {
                 return ConnectResult.Failure(
-                    "Audiobookshelf $version is not supported. Need $MIN_SERVER_VERSION or newer.",
+                    "Audiobookshelf $version is not supported. " +
+                        "Need ${VersionGate.MIN_SERVER_VERSION} or newer.",
                 )
             }
             val login = client.login(LoginRequest(username = username, password = password))
@@ -107,28 +108,9 @@ class SessionManager @Inject constructor(
     }
 
     companion object {
-        const val MIN_SERVER_VERSION = "2.20.0"
-        private fun isVersionSupported(version: String): Boolean {
-            val v = parseVersion(version) ?: return false
-            val min = parseVersion(MIN_SERVER_VERSION) ?: return false
-            return compareVersions(v, min) >= 0
-        }
-
-        private fun parseVersion(text: String): IntArray? {
-            val cleaned = text.removePrefix("v").substringBefore('-')
-            val parts = cleaned.split('.')
-            if (parts.isEmpty()) return null
-            return IntArray(parts.size) { parts[it].toIntOrNull() ?: return null }
-        }
-
-        private fun compareVersions(a: IntArray, b: IntArray): Int {
-            val n = maxOf(a.size, b.size)
-            for (i in 0 until n) {
-                val ai = if (i < a.size) a[i] else 0
-                val bi = if (i < b.size) b[i] else 0
-                if (ai != bi) return ai - bi
-            }
-            return 0
-        }
+        // Mirror VersionGate.MIN_SERVER_VERSION at the SessionManager level
+        // for callers that already reach for SessionManager.MIN_SERVER_VERSION
+        // (HANDOFF.md / README cross-reference this name).
+        const val MIN_SERVER_VERSION: String = VersionGate.MIN_SERVER_VERSION
     }
 }

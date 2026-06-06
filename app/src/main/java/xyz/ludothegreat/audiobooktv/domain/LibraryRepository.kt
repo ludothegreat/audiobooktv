@@ -7,13 +7,24 @@ import xyz.ludothegreat.audiobooktv.data.auth.SessionManager
 import javax.inject.Inject
 import javax.inject.Singleton
 
+/**
+ * What the UI needs from the books source. The concrete production binding
+ * is [LibraryRepository] (ABS REST); tests use an in-memory fake.
+ */
+interface LibraryBookSource {
+    /** All books in the first available library, merged with the user's progress. */
+    suspend fun fetchBooks(): List<Book>
+
+    /** In-progress items only, sorted by most-recently-played. */
+    suspend fun fetchInProgress(): List<Book>
+}
+
 @Singleton
 class LibraryRepository @Inject constructor(
     private val apiProvider: AbsApiProvider,
     private val sessionManager: SessionManager,
-) {
-    /** Returns books for the first available library, merged with the user's progress. */
-    suspend fun fetchBooks(): List<Book> {
+) : LibraryBookSource {
+    override suspend fun fetchBooks(): List<Book> {
         val api = apiProvider.get()
         val libraries = api.libraries().libraries
         val library = libraries.firstOrNull { it.mediaType == "book" }
@@ -29,7 +40,7 @@ class LibraryRepository @Inject constructor(
         return items.map { it.toBook(progressByItem[it.id], baseUrl) }
     }
 
-    suspend fun fetchInProgress(): List<Book> {
+    override suspend fun fetchInProgress(): List<Book> {
         val api = apiProvider.get()
         val inProgress = api.itemsInProgress().libraryItems
         val progressByItem = api.me().mediaProgress

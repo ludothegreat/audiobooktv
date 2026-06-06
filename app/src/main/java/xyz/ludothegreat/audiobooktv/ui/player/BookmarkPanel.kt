@@ -182,7 +182,7 @@ private fun BookmarkRow(
                 modifier = Modifier.width(80.dp),
             )
             Text(
-                text = bookmark.title.ifBlank { "—" },
+                text = bookmark.title.ifBlank { "-" },
                 fontSize = 16.sp,
                 maxLines = 1,
             )

@@ -8,10 +8,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import xyz.ludothegreat.audiobooktv.data.cache.LibraryCache
+import xyz.ludothegreat.audiobooktv.data.cache.LibraryCacheStorage
 import xyz.ludothegreat.audiobooktv.data.cache.LibraryRefreshBus
 import xyz.ludothegreat.audiobooktv.domain.Book
-import xyz.ludothegreat.audiobooktv.domain.LibraryRepository
+import xyz.ludothegreat.audiobooktv.domain.LibraryBookSource
 import javax.inject.Inject
 
 data class LibraryUiState(
@@ -23,8 +23,8 @@ data class LibraryUiState(
 
 @HiltViewModel
 class LibraryViewModel @Inject constructor(
-    private val repository: LibraryRepository,
-    private val cache: LibraryCache,
+    private val repository: LibraryBookSource,
+    private val cache: LibraryCacheStorage,
     private val refreshBus: LibraryRefreshBus,
 ) : ViewModel() {
 
@@ -45,7 +45,7 @@ class LibraryViewModel @Inject constructor(
             val cached = cache.read()
             if (cached.isNotEmpty()) {
                 _state.update {
-                    it.copy(books = sortForGrid(cached), loading = true)
+                    it.copy(books = LibrarySorter.sortForGrid(cached), loading = true)
                 }
             }
             refresh()
@@ -59,7 +59,7 @@ class LibraryViewModel @Inject constructor(
                 .onSuccess { books ->
                     cache.write(books)
                     _state.update {
-                        it.copy(loading = false, books = sortForGrid(books), offline = false)
+                        it.copy(loading = false, books = LibrarySorter.sortForGrid(books), offline = false)
                     }
                 }
                 .onFailure { t ->
@@ -68,7 +68,7 @@ class LibraryViewModel @Inject constructor(
                         if (cached.isNotEmpty()) {
                             it.copy(
                                 loading = false,
-                                books = sortForGrid(cached),
+                                books = LibrarySorter.sortForGrid(cached),
                                 offline = true,
                                 error = null,
                             )
@@ -82,13 +82,5 @@ class LibraryViewModel @Inject constructor(
                     }
                 }
         }
-    }
-
-    private fun sortForGrid(books: List<Book>): List<Book> {
-        val inProgress = books.filter { it.lastUpdate > 0 && !it.isFinished }
-            .sortedByDescending { it.lastUpdate }
-        val others = books.filter { it.lastUpdate == 0L || it.isFinished }
-            .sortedWith(compareBy({ it.isFinished }, { (it.author ?: "").lowercase() }, { it.title.lowercase() }))
-        return inProgress + others
     }
 }
