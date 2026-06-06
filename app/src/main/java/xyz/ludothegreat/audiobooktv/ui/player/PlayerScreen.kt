@@ -115,11 +115,14 @@ fun PlayerScreen(
                     ControlRow(
                         isPlaying = state.isPlaying,
                         speed = state.speed,
+                        sleepTimerMinutes = state.sleepTimerMinutes,
+                        sleepTimerRemainingSec = state.sleepTimerRemainingSec,
                         onSkipBack = viewModel::skipBack30,
                         onPlayPause = viewModel::togglePlayPause,
                         onSkipForward = viewModel::skipForward30,
                         onCycleSpeed = viewModel::openSpeedPanel,
                         onBookmark = viewModel::openBookmarkPanel,
+                        onSleepTimer = viewModel::openSleepTimerPanel,
                         colors = colors,
                     )
                     state.error?.let { msg ->
@@ -146,6 +149,15 @@ fun PlayerScreen(
                 onAddHere = viewModel::addBookmarkHere,
                 onJump = viewModel::jumpToBookmark,
                 onDismiss = viewModel::closeBookmarkPanel,
+            )
+        }
+
+        if (state.sleepTimerPanelVisible) {
+            SleepTimerPanel(
+                currentMinutes = state.sleepTimerMinutes,
+                remainingSec = state.sleepTimerRemainingSec,
+                onSelect = viewModel::setSleepTimerMinutes,
+                onDismiss = viewModel::closeSleepTimerPanel,
             )
         }
     }
@@ -179,11 +191,14 @@ private fun ProgressRow(positionSec: Long, durationSec: Long, colors: androidx.t
 private fun ControlRow(
     isPlaying: Boolean,
     speed: Float,
+    sleepTimerMinutes: Int,
+    sleepTimerRemainingSec: Long?,
     onSkipBack: () -> Unit,
     onPlayPause: () -> Unit,
     onSkipForward: () -> Unit,
     onCycleSpeed: () -> Unit,
     onBookmark: () -> Unit,
+    onSleepTimer: () -> Unit,
     colors: androidx.tv.material3.ColorScheme,
 ) {
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -192,6 +207,11 @@ private fun ControlRow(
         ControlButton(label = "30 »", onClick = onSkipForward, colors = colors)
         ControlButton(label = formatSpeed(speed), onClick = onCycleSpeed, colors = colors)
         ControlButton(label = "Mark", onClick = onBookmark, colors = colors)
+        ControlButton(
+            label = formatSleepLabel(sleepTimerMinutes, sleepTimerRemainingSec),
+            onClick = onSleepTimer,
+            colors = colors,
+        )
     }
 }
 
@@ -235,4 +255,16 @@ private fun formatTime(seconds: Long): String {
 private fun formatSpeed(speed: Float): String {
     val s = if (speed % 1f == 0f) "%.0f".format(speed) else "%.2f".format(speed).trimEnd('0').trimEnd('.')
     return "${s}x"
+}
+
+private fun formatSleepLabel(selectedMinutes: Int, remainingSec: Long?): String {
+    if (remainingSec != null && remainingSec > 0) {
+        val m = remainingSec / 60
+        val s = remainingSec % 60
+        return "Sleep %d:%02d".format(m, s)
+    }
+    if (selectedMinutes > 0) {
+        return "Sleep ${selectedMinutes}m"
+    }
+    return "Sleep"
 }

@@ -3,6 +3,7 @@ package xyz.ludothegreat.audiobooktv.data.settings
 import android.content.Context
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -28,6 +29,14 @@ class AppSettings @Inject constructor(
         AppTheme.entries.firstOrNull { it.name == name } ?: AppTheme.Gruvbox
     }
 
+    /**
+     * User's chosen sleep-timer preset, in whole minutes. 0 means "Off".
+     * The selected preset persists; the actively-running countdown does
+     * not -- when the app cold-starts a fresh book, the user sees the
+     * same preset they last picked but the timer isn't ticking yet.
+     */
+    val sleepTimerMinutes: Flow<Int> = store.data.map { it[KEY_SLEEP_TIMER_MINUTES] ?: 0 }
+
     suspend fun setStopOnAppClose(value: Boolean) {
         store.edit { it[KEY_STOP_ON_APP_CLOSE] = value }
     }
@@ -40,6 +49,10 @@ class AppSettings @Inject constructor(
         store.edit { it[KEY_SELECTED_THEME] = theme.name }
     }
 
+    suspend fun setSleepTimerMinutes(minutes: Int) {
+        store.edit { it[KEY_SLEEP_TIMER_MINUTES] = minutes.coerceAtLeast(0) }
+    }
+
     suspend fun stopOnAppCloseSnapshot(): Boolean = stopOnAppClose.first()
     suspend fun diagnosticLogEnabledSnapshot(): Boolean = diagnosticLogEnabled.first()
 
@@ -47,5 +60,6 @@ class AppSettings @Inject constructor(
         private val KEY_STOP_ON_APP_CLOSE = booleanPreferencesKey("stop_on_app_close")
         private val KEY_DIAGNOSTIC_LOG = booleanPreferencesKey("diagnostic_log")
         private val KEY_SELECTED_THEME = stringPreferencesKey("selected_theme")
+        private val KEY_SLEEP_TIMER_MINUTES = intPreferencesKey("sleep_timer_minutes")
     }
 }

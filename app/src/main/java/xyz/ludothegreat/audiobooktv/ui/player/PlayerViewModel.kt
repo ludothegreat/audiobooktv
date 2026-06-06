@@ -28,6 +28,7 @@ import kotlinx.coroutines.launch
 import xyz.ludothegreat.audiobooktv.data.abs.dto.AbsAudioTrack
 import xyz.ludothegreat.audiobooktv.data.abs.dto.AbsChapter
 import xyz.ludothegreat.audiobooktv.data.log.DiagnosticLog
+import xyz.ludothegreat.audiobooktv.data.settings.AppSettings
 import xyz.ludothegreat.audiobooktv.data.settings.SpeedStore
 import xyz.ludothegreat.audiobooktv.domain.Bookmark
 import xyz.ludothegreat.audiobooktv.playback.BookmarksRepository
@@ -36,6 +37,7 @@ import xyz.ludothegreat.audiobooktv.playback.PlayerService
 import xyz.ludothegreat.audiobooktv.playback.PositionMath
 import xyz.ludothegreat.audiobooktv.playback.RetryPolicy
 import xyz.ludothegreat.audiobooktv.playback.SeekTargets
+import xyz.ludothegreat.audiobooktv.playback.SleepCountdown
 import xyz.ludothegreat.audiobooktv.playback.formatTimestampHms
 import javax.inject.Inject
 
@@ -56,9 +58,21 @@ data class PlayerUiState(
     val bookmarksLoading: Boolean = false,
     val isReconnecting: Boolean = false,
     val error: String? = null,
+    /** User's selected sleep-timer preset, in whole minutes. 0 = Off. */
+    val sleepTimerMinutes: Int = 0,
+    /** Live countdown remaining in seconds, or null when no timer is ticking. */
+    val sleepTimerRemainingSec: Long? = null,
+    val sleepTimerPanelVisible: Boolean = false,
 )
 
 val SPEED_PRESETS: List<Float> = listOf(0.75f, 1.0f, 1.25f, 1.5f, 1.75f, 2.0f)
+
+/**
+ * Sleep-timer presets exposed in the panel. 0 represents "Off". Pulled
+ * out as a top-level constant so the unit tests and the panel UI use
+ * the same list.
+ */
+val SLEEP_TIMER_PRESETS_MINUTES: List<Int> = listOf(0, 5, 10, 15, 30, 45, 60)
 
 @HiltViewModel
 class PlayerViewModel @Inject constructor(
@@ -66,6 +80,7 @@ class PlayerViewModel @Inject constructor(
     private val playbackRepository: PlaybackRepository,
     private val bookmarksRepository: BookmarksRepository,
     private val speedStore: SpeedStore,
+    private val appSettings: AppSettings,
     private val diagnosticLog: DiagnosticLog,
 ) : ViewModel() {
 
@@ -84,6 +99,14 @@ class PlayerViewModel @Inject constructor(
     private var firstErrorWallClockMs: Long = 0
     private var lastSyncWallClockMs: Long = 0
 
+    private val sleepCountdown = SleepCountdown(
+        scope = viewModelScope,
+        onFire = { controller?.pause() },
+        onRemainingChanged = { remainingMs ->
+            _state.update { it.copy(sleepTimerRemainingSec = remainingMs?.div(1000)) }
+        },
+    )
+
     private val foregroundObserver = object : DefaultLifecycleObserver {
         override fun onStart(owner: LifecycleOwner) {
             // App returned to foreground. If another client (ABS web, phone)
@@ -96,7 +119,23 @@ class PlayerViewModel @Inject constructor(
     init {
         bindController()
         startTicker()
+        observeSleepTimerPreset()
         ProcessLifecycleOwner.get().lifecycle.addObserver(foregroundObserver)
+    }
+
+    private fun observeSleepTimerPreset() {
+        viewModelScope.launch {
+            appSettings.sleepTimerMinutes.collect { minutes ->
+                val prev = _state.value.sleepTimerMinutes
+                _state.update { it.copy(sleepTimerMinutes = minutes) }
+                // Reload the countdown's duration when the user changes the
+                // preset OR when the saved preset is hydrated on cold start.
+                if (minutes != prev) {
+                    sleepCountdown.setDuration(minutes)
+                    if (controller?.isPlaying == true) sleepCountdown.resume()
+                }
+            }
+        }
     }
 
     private fun bindController() {
@@ -112,6 +151,7 @@ class PlayerViewModel @Inject constructor(
                             stopPausedPoll()
                             lastSyncWallClockMs = System.currentTimeMillis()
                             startSyncTimer()
+                            sleepCountdown.resume()
                         } else {
                             stopSyncTimer()
                             // Flush one last sync on pause so server sees the
@@ -122,6 +162,9 @@ class PlayerViewModel @Inject constructor(
                             // shows up here without needing the user to
                             // background the app.
                             startPausedPoll()
+                            // Pause the countdown but keep the remaining time
+                            // so a subsequent play resumes from where we left.
+                            sleepCountdown.pause()
                         }
                     }
                     override fun onPlaybackParametersChanged(params: PlaybackParameters) {
@@ -197,6 +240,10 @@ class PlayerViewModel @Inject constructor(
             stopSyncTimer()
             viewModelScope.launch { playbackRepository.closeSession(previous) }
         }
+        // New playback resets the sleep timer to its selected preset value.
+        // If the timer was at 5 min remaining of a 30-min preset and the
+        // user opens a different book, the next playback gets a fresh 30 min.
+        sleepCountdown.setDuration(_state.value.sleepTimerMinutes)
         _state.update { it.copy(loading = true, itemId = itemId, coverUrl = coverUrl, error = null) }
         viewModelScope.launch {
             runCatching { playbackRepository.openPlayback(itemId) }
@@ -300,6 +347,25 @@ class PlayerViewModel @Inject constructor(
 
     fun closeSpeedPanel() {
         _state.update { it.copy(speedPanelVisible = false) }
+    }
+
+    fun openSleepTimerPanel() {
+        _state.update { it.copy(sleepTimerPanelVisible = true) }
+    }
+
+    fun closeSleepTimerPanel() {
+        _state.update { it.copy(sleepTimerPanelVisible = false) }
+    }
+
+    fun setSleepTimerMinutes(minutes: Int) {
+        viewModelScope.launch { appSettings.setSleepTimerMinutes(minutes) }
+        // observeSleepTimerPreset() will re-apply the duration on the
+        // DataStore emission. Resume eagerly if currently playing so the
+        // user sees the count start immediately rather than after a tick.
+        if (controller?.isPlaying == true && minutes > 0) {
+            sleepCountdown.setDuration(minutes)
+            sleepCountdown.resume()
+        }
     }
 
     fun openBookmarkPanel() {

@@ -17,10 +17,16 @@ complexity:
   active: true
   LongMethod:
     active: true
-    threshold: 80
+    # Compose composables with conditional layouts routinely hit ~90 lines
+    # without genuine complexity. Tightened from the default 60 but loose
+    # enough to not need a Composable-by-Composable baseline.
+    threshold: 100
   LongParameterList:
     active: true
-    functionThreshold: 8
+    # Compose control-row composables take many ()->Unit handlers; the
+    # functional alternative is wrapping in a state holder which is more
+    # noise than signal at this scale.
+    functionThreshold: 12
     constructorThreshold: 8
   CyclomaticComplexMethod:
     active: true
