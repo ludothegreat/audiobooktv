@@ -64,17 +64,24 @@
         android:pathData="M206,60h28v4h-28zM218,60h4v60h-4z" />
 
     <!--
-        V: two triangles meeting at a single point.
-        Left half:  top corners (244,60) (252,60), apex (258,120).
-        Right half: top corners (264,60) (272,60), apex (258,120).
-        Top strokes are 8dp each with a 12dp center gap; the halves
-        converge cleanly without overshoot.
+        V: a stroked polyline (top-left -> apex -> top-right) instead
+        of two filled triangles. Android's stroke renderer anti-aliases
+        diagonal edges much more smoothly than triangle fills do at
+        TV-banner DPI, and round caps/joins keep the corner geometry
+        cohesive with the rounded shapes on the bars.
+
+        strokeWidth=8 matches the original triangle's top-edge width
+        (so the V keeps the same visual mass as before). Endpoints are
+        pulled in by 4 (= strokeWidth / 2) so the round caps land
+        exactly on y=60 (top) and y=120 (apex), matching the baseline
+        and cap-height of the other glyphs.
     -->
     <path
-        android:fillColor="#ebdbb2"
-        android:pathData="M244,60L252,60L258,120Z" />
-    <path
-        android:fillColor="#ebdbb2"
-        android:pathData="M272,60L264,60L258,120Z" />
+        android:fillColor="#00000000"
+        android:strokeColor="#ebdbb2"
+        android:strokeWidth="8"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M248,64L258,116L268,64" />
 
 </vector>
