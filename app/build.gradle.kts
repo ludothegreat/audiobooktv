@@ -37,12 +37,60 @@ android {
 
     kotlinOptions {
         jvmTarget = "17"
+        // Media3 ExoPlayer's source-factory + chapter timeline APIs are
+        // marked @UnstableApi. The annotation site itself is gated, so we
+        // opt in at the compile-arg level for the whole module instead of
+        // sprinkling @OptIn at every call site.
+        freeCompilerArgs +=
+            listOf(
+                "-opt-in=androidx.media3.common.util.UnstableApi",
+            )
     }
 
     buildFeatures {
         compose = true
         buildConfig = true
     }
+
+    lint {
+        warningsAsErrors = false
+        abortOnError = true
+        checkDependencies = false
+        checkReleaseBuilds = false
+        lintConfig = file("lint.xml")
+        // Architectural disables -- each is required by a locked decision:
+        //   * Banner is hard-pinned to Android TV launcher spec (320x180).
+        //   * Self-signed cert support + TOFU TLS-pin enrollment is the
+        //     entire point of decision #27 -- AcceptAll/Pinned/Capture
+        //     TrustManagers and the user-CA base config are load-bearing,
+        //     not accidents.
+        //   * allowBackup="false" is explicit; DataExtractionRules is a
+        //     recommendation that conflicts with the no-backup decision.
+        //   * Dep "newer version available" is version-catalog policy, not
+        //     a per-build correctness gate.
+        disable +=
+            setOf(
+                "VectorRaster",
+                "GradleDependency",
+                "AndroidGradlePluginVersion",
+                "NewerVersionAvailable",
+                "AcceptsUserCertificates",
+                "CustomX509TrustManager",
+                "InsecureBaseConfiguration",
+                "DataExtractionRules",
+            )
+    }
+
+    testOptions {
+        unitTests {
+            isIncludeAndroidResources = false
+            isReturnDefaultValues = true
+        }
+    }
+}
+
+tasks.named("check") {
+    dependsOn(":spotlessCheck", ":detekt")
 }
 
 dependencies {
@@ -87,4 +135,13 @@ dependencies {
     implementation(libs.media3.session)
     implementation(libs.media3.datasource.okhttp)
     implementation(libs.guava.listenablefuture)
+
+    testImplementation(libs.junit)
+    testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.turbine)
+    testImplementation(libs.mockwebserver)
+    testImplementation(libs.okhttp)
+    testImplementation(libs.retrofit)
+    testImplementation(libs.retrofit.kotlinx.serialization)
+    testImplementation(libs.kotlinx.serialization.json)
 }

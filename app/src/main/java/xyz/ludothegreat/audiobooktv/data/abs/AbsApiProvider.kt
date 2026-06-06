@@ -10,7 +10,9 @@ class AbsApiProvider @Inject constructor(
     private val sessionManager: SessionManager,
 ) {
     @Volatile private var cachedTarget: AbsTarget? = null
+
     @Volatile private var cachedApi: AbsApi? = null
+
     @Volatile private var cachedOkHttp: OkHttpClient? = null
 
     fun get(): AbsApi {

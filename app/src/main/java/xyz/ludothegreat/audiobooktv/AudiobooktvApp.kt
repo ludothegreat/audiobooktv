@@ -10,17 +10,17 @@ import xyz.ludothegreat.audiobooktv.data.abs.AbsApiProvider
 import javax.inject.Inject
 
 @HiltAndroidApp
-class AudiobooktvApp : Application(), SingletonImageLoader.Factory {
+class AudiobooktvApp :
+    Application(),
+    SingletonImageLoader.Factory {
 
     @Inject lateinit var apiProvider: AbsApiProvider
 
-    override fun newImageLoader(context: PlatformContext): ImageLoader {
-        return ImageLoader.Builder(context)
-            .components {
-                add(
-                    OkHttpNetworkFetcherFactory(callFactory = { apiProvider.okHttp() }),
-                )
-            }
-            .build()
-    }
+    override fun newImageLoader(context: PlatformContext): ImageLoader = ImageLoader.Builder(context)
+        .components {
+            add(
+                OkHttpNetworkFetcherFactory(callFactory = { apiProvider.okHttp() }),
+            )
+        }
+        .build()
 }

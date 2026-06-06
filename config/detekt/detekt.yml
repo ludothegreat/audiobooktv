@@ -1,0 +1,75 @@
+build:
+  maxIssues: 0
+  excludeCorrectable: false
+
+config:
+  validation: true
+  warningsAsErrors: false
+  checkExhaustiveness: false
+
+processors:
+  active: true
+
+console-reports:
+  active: true
+
+complexity:
+  active: true
+  LongMethod:
+    active: true
+    threshold: 80
+  LongParameterList:
+    active: true
+    functionThreshold: 8
+    constructorThreshold: 8
+  CyclomaticComplexMethod:
+    active: true
+    threshold: 18
+  TooManyFunctions:
+    active: false
+  LargeClass:
+    active: true
+    threshold: 700
+
+style:
+  active: true
+  MagicNumber:
+    active: false
+  UnusedPrivateMember:
+    active: true
+  WildcardImport:
+    active: false
+  ReturnCount:
+    active: true
+    max: 6
+  MaxLineLength:
+    active: false
+  ForbiddenComment:
+    active: false
+  NewLineAtEndOfFile:
+    active: true
+
+naming:
+  active: true
+  FunctionNaming:
+    active: false
+  TopLevelPropertyNaming:
+    active: false
+
+empty-blocks:
+  active: true
+  EmptyFunctionBlock:
+    active: false
+
+exceptions:
+  active: true
+  SwallowedException:
+    active: false
+  TooGenericExceptionCaught:
+    active: false
+
+potential-bugs:
+  active: true
+
+performance:
+  active: true

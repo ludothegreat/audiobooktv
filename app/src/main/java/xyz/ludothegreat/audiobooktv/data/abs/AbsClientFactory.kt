@@ -33,12 +33,11 @@ object AbsClientFactory {
 
     fun build(target: AbsTarget): AbsApi = retrofit(target).create(AbsApi::class.java)
 
-    fun retrofit(target: AbsTarget): Retrofit =
-        Retrofit.Builder()
-            .baseUrl(normalizeBaseUrl(target.baseUrl))
-            .client(okHttp(target))
-            .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
-            .build()
+    fun retrofit(target: AbsTarget): Retrofit = Retrofit.Builder()
+        .baseUrl(normalizeBaseUrl(target.baseUrl))
+        .client(okHttp(target))
+        .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
+        .build()
 
     fun okHttp(target: AbsTarget): OkHttpClient {
         val builder = OkHttpClient.Builder()

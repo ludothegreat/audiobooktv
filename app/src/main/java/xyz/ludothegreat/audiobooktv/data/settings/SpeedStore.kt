@@ -18,8 +18,7 @@ class SpeedStore @Inject constructor(
 ) {
     private val store = context.speedDataStore
 
-    suspend fun get(itemId: String): Float? =
-        store.data.map { it[key(itemId)] }.first()
+    suspend fun get(itemId: String): Float? = store.data.map { it[key(itemId)] }.first()
 
     suspend fun set(itemId: String, speed: Float) {
         store.edit { it[key(itemId)] = speed }

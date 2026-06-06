@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    Media3 ExoPlayer surfaces several functional building blocks
+    (DefaultMediaSourceFactory and similar) behind @UnstableApi. The matching
+    Kotlin -opt-in compile flag is already configured in app/build.gradle.kts;
+    this entry mirrors it for lint so we don't have to sprinkle @OptIn
+    at every call site.
+-->
+<lint>
+    <issue id="UnsafeOptInUsageError">
+        <option name="opt-in" value="androidx.media3.common.util.UnstableApi" />
+    </issue>
+</lint>

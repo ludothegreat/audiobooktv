@@ -18,6 +18,7 @@ import javax.inject.Inject
 class MainActivity : ComponentActivity() {
 
     @Inject lateinit var sessionManager: SessionManager
+
     @Inject lateinit var appSettings: AppSettings
 
     override fun onCreate(savedInstanceState: Bundle?) {

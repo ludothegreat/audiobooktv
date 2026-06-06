@@ -26,15 +26,14 @@ class AcceptAllTrustManager : X509TrustManager {
     override fun getAcceptedIssuers(): Array<X509Certificate> = emptyArray()
 }
 
-fun fingerprintCapturingTrustManager(onCapture: (String) -> Unit): X509TrustManager =
-    object : X509TrustManager {
-        override fun checkClientTrusted(chain: Array<out X509Certificate>?, authType: String?) = Unit
-        override fun checkServerTrusted(chain: Array<out X509Certificate>?, authType: String?) {
-            val leaf = chain?.firstOrNull() ?: return
-            onCapture(sha256Hex(leaf.encoded))
-        }
-        override fun getAcceptedIssuers(): Array<X509Certificate> = emptyArray()
+fun fingerprintCapturingTrustManager(onCapture: (String) -> Unit): X509TrustManager = object : X509TrustManager {
+    override fun checkClientTrusted(chain: Array<out X509Certificate>?, authType: String?) = Unit
+    override fun checkServerTrusted(chain: Array<out X509Certificate>?, authType: String?) {
+        val leaf = chain?.firstOrNull() ?: return
+        onCapture(sha256Hex(leaf.encoded))
     }
+    override fun getAcceptedIssuers(): Array<X509Certificate> = emptyArray()
+}
 
 internal fun sha256Hex(bytes: ByteArray): String {
     val digest = MessageDigest.getInstance("SHA-256").digest(bytes)

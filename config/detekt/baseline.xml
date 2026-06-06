@@ -1,0 +1,16 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>CyclomaticComplexMethod:SessionManager.kt$SessionManager$suspend fun connect( serverUrl: String, username: String, password: String, trustSelfSignedCert: Boolean, ): ConnectResult</ID>
+    <ID>LongMethod:BookmarkPanel.kt$@Composable fun BookmarkPanel( positionSec: Long, bookmarks: List&lt;Bookmark&gt;, loading: Boolean, onAddHere: () -&gt; Unit, onJump: (Bookmark) -&gt; Unit, onDismiss: () -&gt; Unit, )</ID>
+    <ID>LongMethod:PlayerScreen.kt$@Composable fun PlayerScreen( itemId: String?, coverUrl: String?, viewModel: PlayerViewModel = hiltViewModel(), )</ID>
+    <ID>LongMethod:SettingsScreen.kt$@Composable fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel())</ID>
+    <ID>LongMethod:SetupScreen.kt$@Composable fun SetupScreen( onConnected: () -&gt; Unit, onExit: () -&gt; Unit = {}, viewModel: SetupViewModel = hiltViewModel(), )</ID>
+    <ID>LongParameterList:PlayerScreen.kt$( isPlaying: Boolean, speed: Float, onSkipBack: () -&gt; Unit, onPlayPause: () -&gt; Unit, onSkipForward: () -&gt; Unit, onCycleSpeed: () -&gt; Unit, onBookmark: () -&gt; Unit, colors: androidx.tv.material3.ColorScheme, )</ID>
+    <ID>LoopWithTooManyJumpStatements:PlayerViewModel.kt$PlayerViewModel$while</ID>
+    <ID>MatchingDeclarationName:RootScaffold.kt$NavDestination</ID>
+    <ID>MatchingDeclarationName:Theme.kt$AppTheme</ID>
+    <ID>ReturnCount:SessionManager.kt$SessionManager$suspend fun connect( serverUrl: String, username: String, password: String, trustSelfSignedCert: Boolean, ): ConnectResult</ID>
+  </CurrentIssues>
+</SmellBaseline>

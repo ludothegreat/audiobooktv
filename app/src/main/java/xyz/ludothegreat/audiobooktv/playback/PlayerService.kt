@@ -1,5 +1,8 @@
 package xyz.ludothegreat.audiobooktv.playback
 
+import androidx.lifecycle.DefaultLifecycleObserver
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.datasource.okhttp.OkHttpDataSource
@@ -7,9 +10,6 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
-import androidx.lifecycle.DefaultLifecycleObserver
-import androidx.lifecycle.LifecycleOwner
-import androidx.lifecycle.ProcessLifecycleOwner
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -24,6 +24,7 @@ import javax.inject.Inject
 class PlayerService : MediaSessionService() {
 
     @Inject lateinit var apiProvider: AbsApiProvider
+
     @Inject lateinit var appSettings: AppSettings
 
     private var session: MediaSession? = null
@@ -52,7 +53,8 @@ class PlayerService : MediaSessionService() {
                     .setContentType(C.AUDIO_CONTENT_TYPE_SPEECH)
                     .setUsage(C.USAGE_MEDIA)
                     .build(),
-                /* handleAudioFocus = */ true,
+                /* handleAudioFocus = */
+                true,
             )
             .setHandleAudioBecomingNoisy(true)
             .build()
