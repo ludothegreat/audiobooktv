@@ -1,19 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
 <!--
-    Android TV launcher banner. The launcher caches this image
-    across reinstalls; a full TV reboot is required to see edits take
-    effect on-device.
+    Android TV launcher banner.
 
-    Layout, 320x180 viewport, gruvbox palette from ui/theme/Theme.kt:
-      Background        #1d2021 (GruvboxBg) full bleed
-      Baseline accent   #98971a (GruvboxGreenDim) at y=158, mirrors icon
-      Three-bar mark    #b8bb26 (GruvboxGreen) at x = 40, 60, 80, h=60
-      "abTV" wordmark   #ebdbb2 (GruvboxFg), proportional rectangles
-                        on the same baseline as the bars
+    Keeps the existing Gruvbox palette and layout, but replaces the
+    hand-built rectangle glyphs with a cleaner rounded monoline wordmark.
 
-    The bars and wordmark share y = 60 .. 120 so they read as one mark.
-    Bars are 16dp wide (was 12dp); the spacing was widened to 18dp so the
-    three columns visually balance against the wider wordmark. Each
-    letter sits in a 28dp x 60dp slot with letter-spacing 10dp.
+    Background      #1d2021
+    Accent line     #98971a
+    Three-bar mark  #b8bb26
+    Wordmark        #ebdbb2
+
+    The Onn TV launcher caches this image across reinstalls; a full TV
+    reboot is required to see edits take effect on-device.
 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="320dp"
@@ -26,62 +24,60 @@
         android:fillColor="#1d2021"
         android:pathData="M0,0h320v180h-320z" />
 
-    <!-- Bottom accent rule, mirrors the launcher icon -->
+    <!-- Bottom accent rule, rounded so it feels less like a debug rectangle -->
     <path
-        android:fillColor="#98971a"
-        android:pathData="M40,158h240v2h-240z" />
+        android:fillColor="#00000000"
+        android:strokeColor="#98971a"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:pathData="M40,159H280" />
 
-    <!-- Three-bar mark: 3 cols, 16dp wide, 18dp pitch, y = 60 .. 120 -->
+    <!-- Three-bar mark -->
     <path
         android:fillColor="#b8bb26"
         android:pathData="M40,60h16v60h-16zM62,60h16v60h-16zM84,60h16v60h-16z" />
 
     <!--
-        "abTV" wordmark, drawn as horizontal/vertical rectangles for a
-        crisp pixel look on the TV launcher. All glyphs sit on baseline
-        y = 120, cap at y = 60, body cap at y = 76. Strokes are 4dp.
-
-        Slots (28dp wide, 10dp gap):
-          a: x = 130 .. 158
-          b: x = 168 .. 196
-          T: x = 206 .. 234
-          V: x = 244 .. 272
+        abTV wordmark.
+        Rounded monoline paths read cleaner at TV banner size than the
+        earlier rectangle-built glyphs. Stroke width is intentionally
+        heavier than before so the wordmark visually balances the mark.
     -->
 
-    <!-- a: top bar, right vertical (full), middle bar, left vertical (lower), bottom bar -->
-    <path
-        android:fillColor="#ebdbb2"
-        android:pathData="M130,76h28v4h-28zM154,76h4v44h-4zM130,94h24v4h-24zM130,94h4v26h-4zM130,116h28v4h-28z" />
-
-    <!-- b: left vertical (full), middle bar, right vertical (lower), bottom bar -->
-    <path
-        android:fillColor="#ebdbb2"
-        android:pathData="M168,60h4v60h-4zM172,84h24v4h-24zM192,84h4v36h-4zM172,116h24v4h-24z" />
-
-    <!-- T: top bar full, center vertical -->
-    <path
-        android:fillColor="#ebdbb2"
-        android:pathData="M206,60h28v4h-28zM218,60h4v60h-4z" />
-
-    <!--
-        V: a stroked polyline (top-left -> apex -> top-right) instead
-        of two filled triangles. Android's stroke renderer anti-aliases
-        diagonal edges much more smoothly than triangle fills do at
-        TV-banner DPI, and round caps/joins keep the corner geometry
-        cohesive with the rounded shapes on the bars.
-
-        strokeWidth=8 matches the original triangle's top-edge width
-        (so the V keeps the same visual mass as before). Endpoints are
-        pulled in by 4 (= strokeWidth / 2) so the round caps land
-        exactly on y=60 (top) and y=120 (apex), matching the baseline
-        and cap-height of the other glyphs.
-    -->
+    <!-- a -->
     <path
         android:fillColor="#00000000"
         android:strokeColor="#ebdbb2"
-        android:strokeWidth="8"
+        android:strokeWidth="10"
         android:strokeLineCap="round"
         android:strokeLineJoin="round"
-        android:pathData="M248,64L258,116L268,64" />
+        android:pathData="M128,82H160V120H128V98H160" />
+
+    <!-- b -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#ebdbb2"
+        android:strokeWidth="10"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M178,60V120H212V88H178" />
+
+    <!-- T -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#ebdbb2"
+        android:strokeWidth="10"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M226,60H262M244,60V120" />
+
+    <!-- V -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#ebdbb2"
+        android:strokeWidth="10"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M272,60L288,120L304,60" />
 
 </vector>
