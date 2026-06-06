@@ -1,8 +1,9 @@
 <!--
-    Legacy launcher icon used by pre-API-26 launchers that don't honour
-    <adaptive-icon>. Composes the same background + bars at the same
-    coordinates as the adaptive layers in drawable/ic_launcher_*.xml.
-    Keep the two in sync.
+    Adaptive-icon background layer (108x108).
+
+    Flat Gruvbox dark (#1d2021) with a single thin GruvboxGreenDim baseline
+    that reads as an audio waveform reference. Stays out of the safe zone
+    so a circle / squircle mask doesn't clip it.
 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
@@ -15,7 +16,4 @@
     <path
         android:fillColor="#98971a"
         android:pathData="M14,94h80v2h-80z" />
-    <path
-        android:fillColor="#b8bb26"
-        android:pathData="M32,31h12v46h-12zM48,31h12v46h-12zM64,31h12v46h-12z" />
 </vector>

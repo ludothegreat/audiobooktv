@@ -1,15 +1,80 @@
+<!--
+    Android TV launcher banner. The launcher caches this image
+    across reinstalls; a full TV reboot is required to see edits take
+    effect on-device.
+
+    Layout, 320x180 viewport, gruvbox palette from ui/theme/Theme.kt:
+      Background        #1d2021 (GruvboxBg) full bleed
+      Baseline accent   #98971a (GruvboxGreenDim) at y=158, mirrors icon
+      Three-bar mark    #b8bb26 (GruvboxGreen) at x = 40, 60, 80, h=60
+      "abTV" wordmark   #ebdbb2 (GruvboxFg), proportional rectangles
+                        on the same baseline as the bars
+
+    The bars and wordmark share y = 60 .. 120 so they read as one mark.
+    Bars are 16dp wide (was 12dp); the spacing was widened to 18dp so the
+    three columns visually balance against the wider wordmark. Each
+    letter sits in a 28dp x 60dp slot with letter-spacing 10dp.
+-->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="320dp"
     android:height="180dp"
     android:viewportWidth="320"
     android:viewportHeight="180">
+
+    <!-- Background -->
     <path
         android:fillColor="#1d2021"
         android:pathData="M0,0h320v180h-320z" />
+
+    <!-- Bottom accent rule, mirrors the launcher icon -->
+    <path
+        android:fillColor="#98971a"
+        android:pathData="M40,158h240v2h-240z" />
+
+    <!-- Three-bar mark: 3 cols, 16dp wide, 18dp pitch, y = 60 .. 120 -->
     <path
         android:fillColor="#b8bb26"
-        android:pathData="M40,60h12v60h-12zM60,60h12v60h-12zM80,60h12v60h-12z" />
+        android:pathData="M40,60h16v60h-16zM62,60h16v60h-16zM84,60h16v60h-16z" />
+
+    <!--
+        "abTV" wordmark, drawn as horizontal/vertical rectangles for a
+        crisp pixel look on the TV launcher. All glyphs sit on baseline
+        y = 120, cap at y = 60, body cap at y = 76. Strokes are 4dp.
+
+        Slots (28dp wide, 10dp gap):
+          a: x = 130 .. 158
+          b: x = 168 .. 196
+          T: x = 206 .. 234
+          V: x = 244 .. 272
+    -->
+
+    <!-- a: top bar, right vertical (full), middle bar, left vertical (lower), bottom bar -->
     <path
         android:fillColor="#ebdbb2"
-        android:pathData="M120,88h16v4h-16zM132,88h4v22h-4zM120,98h12v4h-12zM120,98h4v12h-4zM120,106h12v4h-12zM140,84h4v26h-4zM144,94h12v4h-12zM152,94h4v16h-4zM144,106h12v4h-12zM162,84h20v4h-20zM170,88h4v22h-4zM188,84L192,84L196,110zM204,84L200,84L196,110z" />
+        android:pathData="M130,76h28v4h-28zM154,76h4v44h-4zM130,94h24v4h-24zM130,94h4v26h-4zM130,116h28v4h-28z" />
+
+    <!-- b: left vertical (full), middle bar, right vertical (lower), bottom bar -->
+    <path
+        android:fillColor="#ebdbb2"
+        android:pathData="M168,60h4v60h-4zM172,84h24v4h-24zM192,84h4v36h-4zM172,116h24v4h-24z" />
+
+    <!-- T: top bar full, center vertical -->
+    <path
+        android:fillColor="#ebdbb2"
+        android:pathData="M206,60h28v4h-28zM218,60h4v60h-4z" />
+
+    <!--
+        V: two triangles meeting at a single point.
+        Left half:  top corners (244,60) (252,60), apex (258,120).
+        Right half: top corners (264,60) (272,60), apex (258,120).
+        Top strokes are 8dp each with a 12dp center gap; the halves
+        converge cleanly without overshoot.
+    -->
+    <path
+        android:fillColor="#ebdbb2"
+        android:pathData="M244,60L252,60L258,120Z" />
+    <path
+        android:fillColor="#ebdbb2"
+        android:pathData="M272,60L264,60L258,120Z" />
+
 </vector>

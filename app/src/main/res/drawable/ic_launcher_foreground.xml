@@ -1,0 +1,24 @@
+<!--
+    Adaptive-icon foreground layer (108x108).
+
+    Three bars of GruvboxGreen (#b8bb26) sitting inside the 66dp circular
+    safe zone (center 54,54, radius 33). Layout:
+
+      bars: 12dp wide, 4dp gap, 46dp tall
+      group width: 3*12 + 2*4 = 44dp, centered on x=54  -> x = 32, 48, 64
+      group height: 46dp, centered on y=54              -> y = 31 .. 77
+
+    Worst-case safe-zone check: corner (32, 31) distance from (54, 54)
+    is sqrt(22^2 + 23^2) ~= 31.8dp, inside the 33dp safe radius, so the
+    full mark survives every Android launcher mask (circle, squircle,
+    rounded square).
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#b8bb26"
+        android:pathData="M32,31h12v46h-12zM48,31h12v46h-12zM64,31h12v46h-12z" />
+</vector>
