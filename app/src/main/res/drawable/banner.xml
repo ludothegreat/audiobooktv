@@ -2,8 +2,9 @@
 <!--
     Android TV launcher banner.
 
-    Keeps the existing Gruvbox palette and layout, but replaces the
-    hand-built rectangle glyphs with a cleaner rounded monoline wordmark.
+    Rounded monoline wordmark + three-bar mark, shifted 14dp left of
+    the previous layout so the wider monoline glyphs center cleanly
+    in the banner.
 
     Background      #1d2021
     Accent line     #98971a
@@ -24,7 +25,7 @@
         android:fillColor="#1d2021"
         android:pathData="M0,0h320v180h-320z" />
 
-    <!-- Bottom accent rule, rounded so it feels less like a debug rectangle -->
+    <!-- Bottom accent rule: unchanged -->
     <path
         android:fillColor="#00000000"
         android:strokeColor="#98971a"
@@ -32,52 +33,45 @@
         android:strokeLineCap="round"
         android:pathData="M40,159H280" />
 
-    <!-- Three-bar mark -->
+    <!-- Three-bar mark: shifted left 14 -->
     <path
         android:fillColor="#b8bb26"
-        android:pathData="M40,60h16v60h-16zM62,60h16v60h-16zM84,60h16v60h-16z" />
+        android:pathData="M26,60h16v60h-16zM48,60h16v60h-16zM70,60h16v60h-16z" />
 
-    <!--
-        abTV wordmark.
-        Rounded monoline paths read cleaner at TV banner size than the
-        earlier rectangle-built glyphs. Stroke width is intentionally
-        heavier than before so the wordmark visually balances the mark.
-    -->
-
-    <!-- a -->
+    <!-- a: shifted left 14 -->
     <path
         android:fillColor="#00000000"
         android:strokeColor="#ebdbb2"
         android:strokeWidth="10"
         android:strokeLineCap="round"
         android:strokeLineJoin="round"
-        android:pathData="M128,82H160V120H128V98H160" />
+        android:pathData="M114,82H146V120H114V98H146" />
 
-    <!-- b -->
+    <!-- b: shifted left 14 -->
     <path
         android:fillColor="#00000000"
         android:strokeColor="#ebdbb2"
         android:strokeWidth="10"
         android:strokeLineCap="round"
         android:strokeLineJoin="round"
-        android:pathData="M178,60V120H212V88H178" />
+        android:pathData="M164,60V120H198V88H164" />
 
-    <!-- T -->
+    <!-- T: shifted left 14 -->
     <path
         android:fillColor="#00000000"
         android:strokeColor="#ebdbb2"
         android:strokeWidth="10"
         android:strokeLineCap="round"
         android:strokeLineJoin="round"
-        android:pathData="M226,60H262M244,60V120" />
+        android:pathData="M212,60H248M230,60V120" />
 
-    <!-- V -->
+    <!-- V: shifted left 14 -->
     <path
         android:fillColor="#00000000"
         android:strokeColor="#ebdbb2"
         android:strokeWidth="10"
         android:strokeLineCap="round"
         android:strokeLineJoin="round"
-        android:pathData="M272,60L288,120L304,60" />
+        android:pathData="M258,60L274,120L290,60" />
 
 </vector>
