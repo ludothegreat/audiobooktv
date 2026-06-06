@@ -35,6 +35,7 @@ import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
 import xyz.ludothegreat.audiobooktv.domain.Bookmark
+import xyz.ludothegreat.audiobooktv.playback.formatTimestampHms
 
 @Composable
 fun BookmarkPanel(
@@ -104,7 +105,7 @@ fun BookmarkPanel(
                         contentAlignment = Alignment.CenterStart,
                     ) {
                         Text(
-                            text = "+ Bookmark at ${formatTimestamp(positionSec)}",
+                            text = "+ Bookmark at ${formatTimestampHms(positionSec)}",
                             fontSize = 18.sp,
                             modifier = Modifier.padding(start = 20.dp),
                         )
@@ -177,7 +178,7 @@ private fun BookmarkRow(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                text = formatTimestamp(bookmark.timeSec),
+                text = formatTimestampHms(bookmark.timeSec),
                 fontSize = 16.sp,
                 modifier = Modifier.width(80.dp),
             )
@@ -188,11 +189,4 @@ private fun BookmarkRow(
             )
         }
     }
-}
-
-private fun formatTimestamp(seconds: Long): String {
-    val h = seconds / 3600
-    val m = (seconds % 3600) / 60
-    val s = seconds % 60
-    return if (h > 0) "%d:%02d:%02d".format(h, m, s) else "%d:%02d".format(m, s)
 }

@@ -35,6 +35,8 @@ import xyz.ludothegreat.audiobooktv.playback.PlaybackRepository
 import xyz.ludothegreat.audiobooktv.playback.PlayerService
 import xyz.ludothegreat.audiobooktv.playback.PositionMath
 import xyz.ludothegreat.audiobooktv.playback.RetryPolicy
+import xyz.ludothegreat.audiobooktv.playback.SeekTargets
+import xyz.ludothegreat.audiobooktv.playback.formatTimestampHms
 import javax.inject.Inject
 
 data class PlayerUiState(
@@ -267,17 +269,20 @@ class PlayerViewModel @Inject constructor(
         }
     }
 
+    // Skip handlers obey the position-is-server-truth invariant: each
+    // user-initiated seek must call pushPositionToServer so the pre-play
+    // refresh in togglePlayPause doesn't snap us back. Any new seek path
+    // added here MUST keep the pushPositionToServer call.
     fun skipBack30() {
         val ctl = controller ?: return
-        val target = (absolutePositionSec(ctl) - 30).coerceAtLeast(0)
+        val target = SeekTargets.skipBack(absolutePositionSec(ctl))
         seekToAbsoluteMs(target * 1000)
         pushPositionToServer(target.toDouble())
     }
 
     fun skipForward30() {
         val ctl = controller ?: return
-        val total = _state.value.durationSec
-        val target = (absolutePositionSec(ctl) + 30).coerceAtMost(total)
+        val target = SeekTargets.skipForward(absolutePositionSec(ctl), _state.value.durationSec)
         seekToAbsoluteMs(target * 1000)
         pushPositionToServer(target.toDouble())
     }
@@ -314,7 +319,7 @@ class PlayerViewModel @Inject constructor(
         val id = _state.value.itemId ?: return
         val ctl = controller ?: return
         val timeSec = absolutePositionSec(ctl)
-        val label = formatTimestamp(timeSec)
+        val label = formatTimestampHms(timeSec)
         viewModelScope.launch {
             val created = bookmarksRepository.create(id, timeSec, label) ?: return@launch
             _state.update {
@@ -325,6 +330,8 @@ class PlayerViewModel @Inject constructor(
     }
 
     fun jumpToBookmark(bookmark: Bookmark) {
+        // Also a user-initiated seek -- push to server so togglePlayPause's
+        // pre-play refresh doesn't pull us back to the prior position.
         seekToAbsoluteMs(bookmark.timeSec * 1000)
         _state.update {
             it.copy(
@@ -351,13 +358,6 @@ class PlayerViewModel @Inject constructor(
                 durationSec = dur,
             )
         }
-    }
-
-    private fun formatTimestamp(seconds: Long): String {
-        val h = seconds / 3600
-        val m = (seconds % 3600) / 60
-        val s = seconds % 60
-        return if (h > 0) "%d:%02d:%02d".format(h, m, s) else "%d:%02d".format(m, s)
     }
 
     private fun absolutePositionSec(ctl: MediaController): Long = PositionMath.absolutePositionSec(
