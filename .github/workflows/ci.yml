@@ -73,3 +73,30 @@ jobs:
             app/build/test-results/
           if-no-files-found: warn
           retention-days: 7
+
+  release:
+    name: Publish GitHub Release
+    needs: check
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download release APK artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: audiobooktv-release-apk
+
+      - name: Rename APK with version tag
+        env:
+          TAG: ${{ github.ref_name }}
+        run: mv app-release.apk "audiobooktv-${TAG}.apk"
+
+      - name: Publish release
+        env:
+          TAG: ${{ github.ref_name }}
+        uses: softprops/action-gh-release@v2
+        with:
+          files: audiobooktv-${{ env.TAG }}.apk
+          generate_release_notes: true
+          fail_on_unmatched_files: true

@@ -3,6 +3,7 @@ package xyz.ludothegreat.audiobooktv.ui.player
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -65,8 +66,8 @@ fun SleepTimerPanel(
                 .padding(24.dp),
         ) {
             Column(
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+                modifier = Modifier.fillMaxWidth().focusGroup(),
             ) {
                 Text(
                     text = "Sleep timer",
@@ -91,7 +92,7 @@ fun SleepTimerPanel(
                     val isCurrent = minutes == currentMinutes
                     val mod = Modifier
                         .fillMaxWidth()
-                        .height(52.dp)
+                        .height(44.dp)
                         .let { if (index == currentIndex) it.focusRequester(initialFocus) else it }
 
                     Surface(
