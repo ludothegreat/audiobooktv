@@ -37,6 +37,7 @@ import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import coil3.compose.AsyncImage
 import xyz.ludothegreat.audiobooktv.R
+import xyz.ludothegreat.audiobooktv.playback.formatSleepLabel
 
 @Composable
 fun PlayerScreen(
@@ -201,7 +202,7 @@ private fun ControlRow(
     onSleepTimer: () -> Unit,
     colors: androidx.tv.material3.ColorScheme,
 ) {
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
         ControlButton(label = "« 30", onClick = onSkipBack, colors = colors)
         ControlButton(label = if (isPlaying) "Pause" else "Play", onClick = onPlayPause, emphasised = true, colors = colors)
         ControlButton(label = "30 »", onClick = onSkipForward, colors = colors)
@@ -237,10 +238,20 @@ private fun ControlButton(
                 shape = RoundedCornerShape(8.dp),
             ),
         ),
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 0.dp),
+        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
         modifier = Modifier.height(40.dp),
     ) {
-        Text(text = label, fontSize = 16.sp, color = Color.Unspecified)
+        // softWrap=false + maxLines=1 forbid the half-word wrap we saw on
+        // the Onn box once Play swapped to Pause. If a label is too long
+        // for the row, it ellipsizes -- visible enough to flag the layout
+        // problem instead of silently splitting "Sleep" into "Sle / ep".
+        Text(
+            text = label,
+            fontSize = 16.sp,
+            color = Color.Unspecified,
+            maxLines = 1,
+            softWrap = false,
+        )
     }
 }
 
@@ -255,16 +266,4 @@ private fun formatTime(seconds: Long): String {
 private fun formatSpeed(speed: Float): String {
     val s = if (speed % 1f == 0f) "%.0f".format(speed) else "%.2f".format(speed).trimEnd('0').trimEnd('.')
     return "${s}x"
-}
-
-private fun formatSleepLabel(selectedMinutes: Int, remainingSec: Long?): String {
-    if (remainingSec != null && remainingSec > 0) {
-        val m = remainingSec / 60
-        val s = remainingSec % 60
-        return "Sleep %d:%02d".format(m, s)
-    }
-    if (selectedMinutes > 0) {
-        return "Sleep ${selectedMinutes}m"
-    }
-    return "Sleep"
 }
