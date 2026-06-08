@@ -1,7 +1,7 @@
 # audiobooktv
 
 > [!NOTE]
-> **Dual-platform.** audiobooktv runs as a TV-remote-first app on Android TV / Fire TV / Onn boxes **and** as a touch-first app on Android phones and tablets. Same APK; the launcher picks the right UI for the device. Cross-device resume is automatic via your Audiobookshelf server: pause on the TV, pick up on the phone at the same second.
+> **Dual-platform.** audiobooktv runs as a TV-remote-first app on any Android TV device (Google TV, Fire TV, and the various rebranded boxes) **and** as a touch-first app on Android phones and tablets. Same APK; the launcher picks the right UI for the device. Cross-device resume is automatic via your Audiobookshelf server: pause on the TV, pick up on the phone at the same second.
 
 A dead-simple audiobook player. Backed by an [Audiobookshelf](https://www.audiobookshelf.org/) server. Open it, pick a book, hit play.
 
