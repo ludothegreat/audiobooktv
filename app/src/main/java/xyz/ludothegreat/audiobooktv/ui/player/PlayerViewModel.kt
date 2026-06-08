@@ -36,6 +36,7 @@ import xyz.ludothegreat.audiobooktv.playback.PlaybackRepository
 import xyz.ludothegreat.audiobooktv.playback.PlayerService
 import xyz.ludothegreat.audiobooktv.playback.PositionMath
 import xyz.ludothegreat.audiobooktv.playback.RetryPolicy
+import xyz.ludothegreat.audiobooktv.playback.ScrubTargets
 import xyz.ludothegreat.audiobooktv.playback.SeekTargets
 import xyz.ludothegreat.audiobooktv.playback.SleepCountdown
 import xyz.ludothegreat.audiobooktv.playback.formatTimestampHms
@@ -331,6 +332,25 @@ class PlayerViewModel @Inject constructor(
         val ctl = controller ?: return
         val target = SeekTargets.skipForward(absolutePositionSec(ctl), _state.value.durationSec)
         seekToAbsoluteMs(target * 1000)
+        pushPositionToServer(target.toDouble())
+    }
+
+    /**
+     * Touch-only entry point: drag-to-position from the scrubber. Same
+     * server-truth invariant as skip-30: clamp to the book's envelope, seek
+     * the player, then push the new position so togglePlayPause's pre-play
+     * refresh doesn't yank us back. TV UI does not call this (no scrubber).
+     */
+    fun seekToAbsoluteSec(seconds: Long) {
+        if (controller == null) return
+        val target = ScrubTargets.clamp(targetSec = seconds, durationSec = _state.value.durationSec)
+        seekToAbsoluteMs(target * 1000)
+        _state.update {
+            it.copy(
+                positionSec = target,
+                chapterTitle = currentChapterTitle(target.toDouble()),
+            )
+        }
         pushPositionToServer(target.toDouble())
     }
 
