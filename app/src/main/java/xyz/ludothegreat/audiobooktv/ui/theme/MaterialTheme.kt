@@ -1,20 +1,20 @@
 package xyz.ludothegreat.audiobooktv.ui.theme
 
+import androidx.compose.material3.ColorScheme
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Typography
+import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
-import androidx.tv.material3.ColorScheme
-import androidx.tv.material3.MaterialTheme
-import androidx.tv.material3.Typography
-import androidx.tv.material3.darkColorScheme
 
-enum class AppTheme(val displayName: String) {
-    Gruvbox("Gruvbox"),
-    NeonLightning("NeonLightning"),
-}
+// Material3 (touch) equivalents of the TV ColorSchemes in Theme.kt. Slot mapping
+// matches the TV theme as closely as Material3 allows -- "border" is TV-only and
+// has no Material3 slot, so it's dropped here. Tokens come from Palette so both
+// surfaces stay in lockstep.
 
-private val GruvboxScheme = darkColorScheme(
+private val GruvboxM3 = darkColorScheme(
     primary = Palette.GruvboxGreen,
     onPrimary = Palette.GruvboxBg,
     primaryContainer = Palette.GruvboxGreenDim,
@@ -29,10 +29,10 @@ private val GruvboxScheme = darkColorScheme(
     onSurfaceVariant = Palette.GruvboxFgDim,
     error = Palette.GruvboxRed,
     onError = Palette.GruvboxFg,
-    border = Palette.GruvboxFgDim,
+    outline = Palette.GruvboxFgDim,
 )
 
-private val NeonLightningScheme = darkColorScheme(
+private val NeonLightningM3 = darkColorScheme(
     primary = Palette.NeonMagenta,
     onPrimary = Color.White,
     primaryContainer = Palette.NeonMagentaDeep,
@@ -47,15 +47,15 @@ private val NeonLightningScheme = darkColorScheme(
     onSurfaceVariant = Palette.NeonFgDim,
     error = Palette.NeonRed,
     onError = Color.White,
-    border = Palette.NeonFgDim,
+    outline = Palette.NeonFgDim,
 )
 
-private fun schemeFor(theme: AppTheme): ColorScheme = when (theme) {
-    AppTheme.Gruvbox -> GruvboxScheme
-    AppTheme.NeonLightning -> NeonLightningScheme
+private fun materialSchemeFor(theme: AppTheme): ColorScheme = when (theme) {
+    AppTheme.Gruvbox -> GruvboxM3
+    AppTheme.NeonLightning -> NeonLightningM3
 }
 
-private fun typographyFor(theme: AppTheme): Typography {
+private fun materialTypographyFor(theme: AppTheme): Typography {
     val family = when (theme) {
         AppTheme.Gruvbox -> FontFamily.Default
         AppTheme.NeonLightning -> FontFamily.Monospace
@@ -82,10 +82,13 @@ private fun typographyFor(theme: AppTheme): Typography {
 }
 
 @Composable
-fun AudiobooktvTheme(theme: AppTheme = AppTheme.Gruvbox, content: @Composable () -> Unit) {
+fun AudiobooktvMaterialTheme(
+    theme: AppTheme = AppTheme.Gruvbox,
+    content: @Composable () -> Unit,
+) {
     MaterialTheme(
-        colorScheme = schemeFor(theme),
-        typography = typographyFor(theme),
+        colorScheme = materialSchemeFor(theme),
+        typography = materialTypographyFor(theme),
         content = content,
     )
 }
