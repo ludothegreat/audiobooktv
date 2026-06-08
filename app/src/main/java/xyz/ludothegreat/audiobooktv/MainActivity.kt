@@ -57,8 +57,6 @@ class MainActivity : ComponentActivity() {
 
     @androidx.compose.runtime.Composable
     private fun TouchContent() {
-        // Setup + nav for the touch surface land in later increments. For now
-        // the placeholder confirms form-factor routing is wiring up.
-        TouchRootScaffold()
+        TouchRootScaffold(sessionManager = sessionManager)
     }
 }
