@@ -1,46 +1,53 @@
 # audiobooktv
 
-> [!IMPORTANT]
-> **This app is built for TV remotes, not touch.** Every screen is laid out around D-pad focus and navigation. Installing it on a phone or tablet will work, but the UI assumes a remote and there is no touch-control equivalent on the roadmap. Use it on a Fire TV, Google/Android TV, or Onn streaming box.
+> [!NOTE]
+> **Dual-platform.** audiobooktv runs as a TV-remote-first app on Android TV / Fire TV / Onn boxes **and** as a touch-first app on Android phones and tablets. Same APK; the launcher picks the right UI for the device. Cross-device resume is automatic via your Audiobookshelf server - pause on the TV, pick up on the phone at the same second.
 
-A dead-simple Android TV audiobook player. Backed by an [Audiobookshelf](https://www.audiobookshelf.org/) server. Open it, pick a book, hit play.
+A dead-simple audiobook player. Backed by an [Audiobookshelf](https://www.audiobookshelf.org/) server. Open it, pick a book, hit play.
 
-Built for sideload on Fire TV, Google/Android TV, and Onn streaming boxes. No store listings, no telemetry, no accounts beyond your existing ABS user.
+Built for sideload. No store listings, no telemetry, no accounts beyond your existing ABS user.
 
 ## What it does
 
-- Auto-resumes whatever book you were last on, paused at the exact second you left off.
-- Position, bookmarks, and per-book playback speed all sync server-side, so the TV stays in lock-step with ABS web and the official phone apps.
-- Five-button player UI tuned for a D-pad remote: skip back 30, play/pause, skip forward 30, speed, bookmark.
-- Six speed presets (0.75x to 2x) with a panel that pre-focuses your current speed.
-- Bookmark add (silent, no on-screen keyboard) and jump-to, sorted by timestamp.
-- Library grid of all your books, 5 wide, in-progress sorted first.
-- Silent retry on mid-playback network drops with a small "Reconnecting…" indicator after 30s.
+- Auto-resumes the book you were last on, paused at the exact second you left off, on whichever device you open next.
+- Position, bookmarks, and per-book playback speed sync server-side, so the TV, phone, tablet, and ABS web stay in lock-step.
+- **TV:** D-pad-driven UI with a six-button player row (skip-back-30, play/pause, skip-forward-30, speed, sleep, bookmark) and a left-side nav rail.
+- **Touch:** full-width cover, draggable scrubber, large round play/pause, and Speed / Sleep / Bookmark chips that open bottom sheets. Bottom nav bar on phones, side nav rail on tablets.
+- Six speed presets (0.75x to 2x), remembered per book.
+- Add bookmarks at the current position with one tap (no on-screen keyboard) and jump to them, sorted by timestamp.
+- Library grid sorted with in-progress books first, then alphabetical by author. Finished books stay listed, dimmed.
+- Sleep timer with a persistent preset and a countdown that pauses with playback.
+- Silent retry on mid-playback network drops, with a small "Reconnecting…" indicator after 30 seconds.
 - Cold-launch offline shows your cached library with an "Offline" badge instead of a blank screen.
-- "Stop playback when app closes" toggle for people who don't want the background-audio behavior.
+- "Stop playback when app closes" toggle in Settings.
+- Themes: Gruvbox (default) and NeonLightning.
 
 ## What it doesn't do (yet)
 
-Sleep timer, jump-to-chapter menu, bookmark rename/delete, search, QR-code pairing, offline downloads, remote crash reporting. See `docs/brainstorm/future-features.md` for the full deferred list and the reasoning.
+Jump-to-chapter menu, bookmark rename/delete, library search, QR-code first-run pairing, offline downloads.
 
 ## Requirements
 
-- Android TV / Fire TV / Onn device running Android 9 (Fire OS 7) or newer.
+- Android 9 (API 28) or newer. Fire OS 7+ on Fire TV, current Google/Android TV, and current Android phones/tablets all qualify.
 - An Audiobookshelf v2.20.0 or newer server you can reach. http and https both work.
-- For self-signed https, the app supports trust-on-first-use cert pinning - toggle it on at first-run setup.
+- For self-signed https, toggle "Trust this server's certificate" on at first-run setup.
 
 ## Sideload
 
-Grab the APK from the release tag, then on the device:
+Same APK installs on TV, phone, or tablet.
 
 ```
-adb connect <tv-ip>:5555
-adb -s <tv-ip>:5555 install -r app-release.apk
+# TV (adb-over-wifi)
+adb connect <device-ip>:5555
+adb -s <device-ip>:5555 install -r app-release.apk
+
+# phone / tablet (USB)
+adb install -r app-release.apk
 ```
 
-Or use any standard sideload tool (Downloader on Fire TV, File Manager on Google TV, etc).
+Or use any standard sideload tool (Downloader on Fire TV, File Manager on Google TV, any file manager on a phone, etc).
 
-First launch: enter the server URL (must start with `http://` or `https://`), your ABS username, and your password. Press Connect. After that the app never asks for credentials again unless you log out from Settings.
+First launch: enter the server URL (must start with `http://` or `https://`), your ABS username, and your password. Press Connect. The app does not ask again unless you log out from Settings.
 
 ## Build from source
 
@@ -52,7 +59,7 @@ cd audiobooktv
 JAVA_HOME=/usr/lib/jvm/java-21-openjdk ./gradlew assembleRelease
 ```
 
-The APK lands at `app/build/outputs/apk/release/app-release.apk` (~5 MB, signed with the debug key so it installs cleanly without secret management).
+The APK lands at `app/build/outputs/apk/release/app-release.apk`. Releases are signed with the Android debug keystore - that lets anyone build and install without managing secrets, but a build from a different machine will refuse to install on top of one from another machine. Uninstall first if you switch sources.
 
 ## Privacy and telemetry
 
