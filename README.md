@@ -1,7 +1,7 @@
 # audiobooktv
 
 > [!NOTE]
-> **Dual-platform.** audiobooktv runs as a TV-remote-first app on Android TV / Fire TV / Onn boxes **and** as a touch-first app on Android phones and tablets. Same APK; the launcher picks the right UI for the device. Cross-device resume is automatic via your Audiobookshelf server - pause on the TV, pick up on the phone at the same second.
+> **Dual-platform.** audiobooktv runs as a TV-remote-first app on Android TV / Fire TV / Onn boxes **and** as a touch-first app on Android phones and tablets. Same APK; the launcher picks the right UI for the device. Cross-device resume is automatic via your Audiobookshelf server: pause on the TV, pick up on the phone at the same second.
 
 A dead-simple audiobook player. Backed by an [Audiobookshelf](https://www.audiobookshelf.org/) server. Open it, pick a book, hit play.
 
@@ -59,7 +59,7 @@ cd audiobooktv
 JAVA_HOME=/usr/lib/jvm/java-21-openjdk ./gradlew assembleRelease
 ```
 
-The APK lands at `app/build/outputs/apk/release/app-release.apk`. Releases are signed with the Android debug keystore - that lets anyone build and install without managing secrets, but a build from a different machine will refuse to install on top of one from another machine. Uninstall first if you switch sources.
+The APK lands at `app/build/outputs/apk/release/app-release.apk`. Releases are signed with the Android debug keystore. That lets anyone build and install without managing secrets, but a build from a different machine will refuse to install on top of one from another machine; uninstall first if you switch sources.
 
 ## Privacy and telemetry
 
