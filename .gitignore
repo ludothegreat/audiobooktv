@@ -11,5 +11,7 @@ captures/
 *.keystore
 .kotlin/
 
-# Personal/internal project notes — kept locally, never published
+# Personal/internal project notes, kept locally, never published
 HANDOFF.md
+CLAUDE.md
+.claude/

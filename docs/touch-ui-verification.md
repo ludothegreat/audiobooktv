@@ -4,23 +4,18 @@ Manual on-device checks to confirm the touch UI is working AND that cross-device
 resume between TV and phone/tablet round-trips through Audiobookshelf
 correctly. You'll need:
 
-- The current `audiobooktv` repo at `/hoard/lab/audiobooktv` (branch
-  `feat/touch-ui` for this round).
-- The TV install already on the Onn box at `192.168.1.143:5555`.
+- A checkout of this repo.
+- The TV install already on an Android TV device at `<tv-ip>:5555`.
 - A phone and a tablet running Android 9+ with USB debugging enabled.
-- The ABS server at `http://192.168.1.101:13378` reachable from all three
+- The ABS server at `http://<abs-host>:13378` reachable from all three
   devices on the same LAN / VPN.
 
-Credentials live in `pass`:
-
-```
-pass show audiobookshelf/ludo        # password for the ABS "ludo" user
-```
+You will need the username and password for your own Audiobookshelf account.
 
 ## Build the touch APK
 
 ```
-cd /hoard/lab/audiobooktv
+cd /path/to/audiobooktv
 JAVA_HOME=/usr/lib/jvm/java-21-openjdk ./gradlew assembleRelease
 ls -la app/build/outputs/apk/release/app-release.apk
 ```
@@ -34,7 +29,7 @@ Plug the phone in via USB. Accept the "Allow USB debugging" prompt.
 
 ```
 adb devices                          # confirm the phone is listed
-adb install -r /hoard/lab/audiobooktv/app/build/outputs/apk/release/app-release.apk
+adb install -r app/build/outputs/apk/release/app-release.apk
 adb shell am start -n xyz.ludothegreat.audiobooktv/.MainActivity
 ```
 
@@ -44,16 +39,16 @@ Wifi (preferred for tablets, mirrors the TV flow):
 
 ```
 adb connect <tablet-ip>:5555
-adb -s <tablet-ip>:5555 install -r /hoard/lab/audiobooktv/app/build/outputs/apk/release/app-release.apk
+adb -s <tablet-ip>:5555 install -r app/build/outputs/apk/release/app-release.apk
 adb -s <tablet-ip>:5555 shell am start -n xyz.ludothegreat.audiobooktv/.MainActivity
 ```
 
 ## First-run setup (each device)
 
 1. App opens to the Material3 setup form (touch surface).
-2. Server URL: `http://192.168.1.101:13378`
-3. Username: `ludo`
-4. Password: `pass show audiobookshelf/ludo`
+2. Server URL: `http://<abs-host>:13378`
+3. Username: `<your-abs-username>`
+4. Password: `<your-abs-password>`
 5. Leave "Trust this server's certificate" OFF (the server speaks plain http).
 6. Tap **Connect**. The form submits, the TLS-pin enrollment is a no-op for
    http URLs, and the app lands in the touch root scaffold.
