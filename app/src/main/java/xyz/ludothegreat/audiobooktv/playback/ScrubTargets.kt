@@ -7,13 +7,15 @@ package xyz.ludothegreat.audiobooktv.playback
  * without a MediaController in flight.
  *
  * Negative target inputs are coerced to 0. A duration <= 0 (book hasn't
- * loaded yet) collapses to 0 to refuse the seek -- we don't want a stray
- * scrubber callback during load to land the player at -1s or some
- * Long.MAX_VALUE.
+ * loaded yet) returns null, which the caller MUST treat as "drop this seek".
+ * Returning 0 here instead would be indistinguishable from a real
+ * seek-to-start, and every user-initiated seek pushes to the server -- so a
+ * stray scrubber callback during load would sync position 0 back to
+ * Audiobookshelf and wipe the listener's progress on every device.
  */
 object ScrubTargets {
-    fun clamp(targetSec: Long, durationSec: Long): Long {
-        if (durationSec <= 0) return 0
+    fun clamp(targetSec: Long, durationSec: Long): Long? {
+        if (durationSec <= 0) return null
         return targetSec.coerceIn(0, durationSec)
     }
 }
