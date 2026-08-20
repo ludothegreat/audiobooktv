@@ -238,9 +238,14 @@ private fun ScrubberRow(positionSec: Long, durationSec: Long, onScrub: (Long) ->
         if (!dragging) dragValueSec = positionSec
     }
     val displaySec = if (dragging) dragValueSec else positionSec
+    // coerceAtLeast(1) only keeps the range legal for Slider; it does NOT make
+    // a 0-duration book scrubbable. Gate on the real duration instead, or a
+    // drag during load reaches seekToAbsoluteSec with a meaningless target.
+    val durationKnown = durationSec > 0
     val maxSec = durationSec.coerceAtLeast(1)
     Column {
         Slider(
+            enabled = durationKnown,
             value = displaySec.toFloat().coerceIn(0f, maxSec.toFloat()),
             valueRange = 0f..maxSec.toFloat(),
             onValueChange = { v ->

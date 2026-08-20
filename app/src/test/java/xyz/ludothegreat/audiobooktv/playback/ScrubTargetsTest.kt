@@ -1,6 +1,7 @@
 package xyz.ludothegreat.audiobooktv.playback
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Test
 
 class ScrubTargetsTest {
@@ -22,8 +23,16 @@ class ScrubTargetsTest {
 
     @Test
     fun `zero or negative duration refuses the seek`() {
-        // Stray scrubber callback during load must not land at a wild value.
-        assertEquals(0L, ScrubTargets.clamp(targetSec = 100, durationSec = 0))
-        assertEquals(0L, ScrubTargets.clamp(targetSec = 100, durationSec = -1))
+        // null, NOT 0. seekToAbsoluteSec pushes every clamped target to the
+        // server, so returning 0 here would sync position 0 to Audiobookshelf
+        // and wipe the listener's progress on a stray callback during load.
+        assertNull(ScrubTargets.clamp(targetSec = 100, durationSec = 0))
+        assertNull(ScrubTargets.clamp(targetSec = 100, durationSec = -1))
+    }
+
+    @Test
+    fun `refusal is distinguishable from a real seek to start`() {
+        assertEquals(0L, ScrubTargets.clamp(targetSec = 0, durationSec = 3600))
+        assertNull(ScrubTargets.clamp(targetSec = 0, durationSec = 0))
     }
 }

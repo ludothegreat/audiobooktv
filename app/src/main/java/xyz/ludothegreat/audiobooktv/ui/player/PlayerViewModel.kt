@@ -31,6 +31,7 @@ import xyz.ludothegreat.audiobooktv.data.log.DiagnosticLog
 import xyz.ludothegreat.audiobooktv.data.settings.AppSettings
 import xyz.ludothegreat.audiobooktv.data.settings.SpeedStore
 import xyz.ludothegreat.audiobooktv.domain.Bookmark
+import xyz.ludothegreat.audiobooktv.playback.BookmarkList
 import xyz.ludothegreat.audiobooktv.playback.BookmarksRepository
 import xyz.ludothegreat.audiobooktv.playback.PlaybackRepository
 import xyz.ludothegreat.audiobooktv.playback.PlayerService
@@ -343,7 +344,10 @@ class PlayerViewModel @Inject constructor(
      */
     fun seekToAbsoluteSec(seconds: Long) {
         if (controller == null) return
+        // null = duration not known yet. Dropping the seek is the whole point:
+        // falling through would push position 0 to the server.
         val target = ScrubTargets.clamp(targetSec = seconds, durationSec = _state.value.durationSec)
+            ?: return
         seekToAbsoluteMs(target * 1000)
         _state.update {
             it.copy(
@@ -392,7 +396,7 @@ class PlayerViewModel @Inject constructor(
         val id = _state.value.itemId ?: return
         _state.update { it.copy(bookmarkPanelVisible = true, bookmarksLoading = true) }
         viewModelScope.launch {
-            val items = bookmarksRepository.fetchForItem(id)
+            val items = BookmarkList.normalize(bookmarksRepository.fetchForItem(id))
             _state.update { it.copy(bookmarks = items, bookmarksLoading = false) }
         }
     }
@@ -409,8 +413,7 @@ class PlayerViewModel @Inject constructor(
         viewModelScope.launch {
             val created = bookmarksRepository.create(id, timeSec, label) ?: return@launch
             _state.update {
-                val merged = (it.bookmarks + created).sortedBy { b -> b.timeSec }
-                it.copy(bookmarks = merged)
+                it.copy(bookmarks = BookmarkList.normalize(it.bookmarks + created))
             }
         }
     }
