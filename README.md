@@ -51,7 +51,9 @@ First launch: enter the server URL (must start with `http://` or `https://`), yo
 
 ## Build from source
 
-Requires JDK 21 and Android SDK 35.
+Requires JDK 21 and Android SDK 35. JDK 21 specifically: the Gradle 8.11
+wrapper cannot run on JDK 24 or newer, and fails while compiling the build
+scripts with a bare version string as the whole error message.
 
 ```
 git clone https://github.com/ludothegreat/audiobooktv.git
