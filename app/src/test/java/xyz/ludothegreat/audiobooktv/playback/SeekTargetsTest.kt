@@ -34,4 +34,37 @@ class SeekTargetsTest {
         assertEquals(3600L, SeekTargets.skipForward(currentAbsSec = 3590, durationSec = 3600))
         assertEquals(3599L, SeekTargets.skipForward(currentAbsSec = 3569, durationSec = 3600))
     }
+
+    @Test
+    fun `longSkipBack subtracts 5 minutes`() {
+        assertEquals(700L, SeekTargets.longSkipBack(1000))
+    }
+
+    @Test
+    fun `longSkipBack clamps to zero near the start of the book`() {
+        assertEquals(0L, SeekTargets.longSkipBack(0))
+        assertEquals(0L, SeekTargets.longSkipBack(299))
+        assertEquals(0L, SeekTargets.longSkipBack(300))
+        assertEquals(1L, SeekTargets.longSkipBack(301))
+    }
+
+    @Test
+    fun `longSkipForward adds 5 minutes`() {
+        assertEquals(900L, SeekTargets.longSkipForward(currentAbsSec = 600, durationSec = 3600))
+    }
+
+    @Test
+    fun `longSkipForward clamps to duration near the end of the book`() {
+        assertEquals(3600L, SeekTargets.longSkipForward(currentAbsSec = 3600, durationSec = 3600))
+        assertEquals(3600L, SeekTargets.longSkipForward(currentAbsSec = 3400, durationSec = 3600))
+        assertEquals(3599L, SeekTargets.longSkipForward(currentAbsSec = 3299, durationSec = 3600))
+    }
+
+    @Test
+    fun `long skip is 10x the primary skip, not a replacement for it`() {
+        // The 30s increment is settled as the primary; this pins the pair
+        // relationship so a future tweak to one constant is a conscious act.
+        assertEquals(30L, SeekTargets.SKIP_SECONDS)
+        assertEquals(300L, SeekTargets.LONG_SKIP_SECONDS)
+    }
 }

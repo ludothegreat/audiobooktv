@@ -7,6 +7,7 @@ package xyz.ludothegreat.audiobooktv.playback
  */
 enum class SeekCause {
     Skip,
+    LongSkip,
     Scrub,
     BookmarkJump,
     ChapterJump,

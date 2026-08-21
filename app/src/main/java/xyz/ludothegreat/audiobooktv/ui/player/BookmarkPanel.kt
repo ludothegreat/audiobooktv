@@ -32,6 +32,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -42,9 +43,10 @@ import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
 import kotlinx.coroutines.delay
 import xyz.ludothegreat.audiobooktv.domain.Bookmark
+import xyz.ludothegreat.audiobooktv.playback.BookmarkLabel
 import xyz.ludothegreat.audiobooktv.playback.formatTimestampHms
-
-private const val DELETE_CONFIRM_WINDOW_MS = 3_000L
+import xyz.ludothegreat.audiobooktv.ui.common.DELETE_CONFIRM_WINDOW_MS
+import xyz.ludothegreat.audiobooktv.ui.common.dpadFocusEscape
 
 @Composable
 fun BookmarkPanel(
@@ -279,11 +281,16 @@ private fun BookmarkRow(
                     fontSize = 16.sp,
                     modifier = Modifier.width(80.dp),
                 )
-                Text(
-                    text = bookmark.title.ifBlank { "-" },
-                    fontSize = 16.sp,
-                    maxLines = 1,
-                )
+                // Null for an unrenamed bookmark, whose title IS the
+                // timestamp: print the time once instead of twice.
+                val secondary = BookmarkLabel.secondary(bookmark.title, bookmark.timeSec, "-")
+                if (secondary != null) {
+                    Text(
+                        text = secondary,
+                        fontSize = 16.sp,
+                        maxLines = 1,
+                    )
+                }
             }
         }
         RowActionButton(
@@ -352,6 +359,7 @@ private fun RenameEditor(
 ) {
     var title by remember { mutableStateOf(bookmark.title) }
     val fieldFocus = remember { FocusRequester() }
+    val focusManager = LocalFocusManager.current
 
     Column(
         verticalArrangement = Arrangement.spacedBy(14.dp),
@@ -379,7 +387,13 @@ private fun RenameEditor(
                 focusedContainerColor = colors.surface,
                 unfocusedContainerColor = colors.surface,
             ),
-            modifier = Modifier.fillMaxWidth().focusRequester(fieldFocus),
+            // Same D-pad trap as the library search field: without the
+            // escape, a focused TextField consumes Down after the IME is
+            // dismissed and Save/Cancel are unreachable by remote.
+            modifier = Modifier
+                .fillMaxWidth()
+                .focusRequester(fieldFocus)
+                .dpadFocusEscape(focusManager),
         )
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             EditorButton(

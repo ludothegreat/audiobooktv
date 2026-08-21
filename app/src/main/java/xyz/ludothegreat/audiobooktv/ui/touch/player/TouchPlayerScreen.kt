@@ -1,6 +1,10 @@
 package xyz.ludothegreat.audiobooktv.ui.touch.player
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -14,13 +18,16 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Toc
 import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.FastForward
+import androidx.compose.material.icons.filled.FastRewind
 import androidx.compose.material.icons.filled.Forward30
 import androidx.compose.material.icons.filled.NightsStay
 import androidx.compose.material.icons.filled.Pause
@@ -57,6 +64,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import kotlinx.coroutines.delay
 import xyz.ludothegreat.audiobooktv.R
 import xyz.ludothegreat.audiobooktv.data.abs.dto.AbsChapter
 import xyz.ludothegreat.audiobooktv.playback.BookProgress
@@ -108,24 +116,27 @@ fun TouchPlayerScreen(
             .padding(horizontal = 24.dp, vertical = 16.dp),
     ) {
         Column(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            CoverArt(
-                model = state.coverUrl ?: coverUrl,
-                contentDescription = state.title,
-                title = state.title,
-                containerColor = colors.surfaceVariant,
-                contentColor = colors.onSurfaceVariant,
-                initialsSize = 64.sp,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .widthIn(max = 360.dp)
-                    .aspectRatio(1f)
-                    .align(Alignment.CenterHorizontally)
-                    .clip(RoundedCornerShape(12.dp)),
-            )
+            // The cover is the ONLY flexible element: it gets whatever height
+            // is left after the fixed stack below (metadata, chapter bar,
+            // scrubber, transport, chips) measures, because weighted children
+            // size last. The old chain sized the cover first and its
+            // fillMaxWidth().widthIn(max) cap was dead code (fillMaxWidth pins
+            // min = max, so widthIn cannot shrink it): on the foldable inner
+            // display that produced a full-width square cover which
+            // pushed the transport row and the chips clean off the bottom
+            // edge, measuring them at zero height.
+            Box(
+                modifier = Modifier.fillMaxWidth().weight(1f),
+                contentAlignment = Alignment.Center,
+            ) {
+                CoverPlayToggle(
+                    state = state,
+                    fallbackCoverUrl = coverUrl,
+                    onToggle = viewModel::togglePlayPause,
+                )
+            }
 
             MetadataBlock(state = state)
-
-            Spacer(modifier = Modifier.weight(1f))
 
             val chapterIndex = ChapterMath.indexAt(state.positionSec.toDouble(), state.chapters)
             if (chapterIndex != null) {
@@ -141,20 +152,27 @@ fun TouchPlayerScreen(
                 positionSec = state.positionSec,
                 durationSec = state.durationSec,
                 speed = state.speed,
+                labeled = chapterIndex != null,
                 onScrub = viewModel::seekToAbsoluteSec,
             )
 
             PrimaryControls(
                 isPlaying = state.isPlaying,
+                onLongSkipBack = viewModel::skipBackLong,
                 onSkipBack = viewModel::skipBack30,
                 onPlayPause = viewModel::togglePlayPause,
                 onSkipForward = viewModel::skipForward30,
+                onLongSkipForward = viewModel::skipForwardLong,
             )
 
             SecondaryChips(
                 speed = state.speed,
-                sleepTimerMinutes = state.sleepTimerMinutes,
-                sleepTimerRemainingSec = state.sleepTimerRemainingSec,
+                sleepLabel = formatSleepLabel(
+                    selectedMinutes = state.sleepTimerMinutes,
+                    remainingSec = state.sleepTimerRemainingSec,
+                    endOfChapter = state.sleepEndOfChapter && state.chapters.isNotEmpty(),
+                    eocWaiting = state.sleepEocWaiting,
+                ),
                 showChapters = state.chapters.isNotEmpty(),
                 chaptersLabel = ChapterMath.counterLabel(chapterIndex, state.chapters.size),
                 undoAvailable = state.undoSeekTargetSec != null,
@@ -190,10 +208,13 @@ private fun PlayerSheets(state: PlayerUiState, viewModel: PlayerViewModel) {
     if (state.sleepTimerPanelVisible) {
         TouchSleepSheet(
             currentMinutes = state.sleepTimerMinutes,
+            endOfChapter = state.sleepEndOfChapter,
+            showEndOfChapter = state.chapters.isNotEmpty(),
             onPick = { minutes ->
                 viewModel.setSleepTimerMinutes(minutes)
                 viewModel.closeSleepTimerPanel()
             },
+            onToggleEndOfChapter = viewModel::setSleepEndOfChapter,
             onDismiss = viewModel::closeSleepTimerPanel,
         )
     }
@@ -274,6 +295,78 @@ private fun EmptyPlayer(onOpenLibrary: () -> Unit) {
     }
 }
 
+/**
+ * The cover doubles as the biggest play/pause target on the screen -- the
+ * eyes-free tap the category's reference apps are loved for. A tap toggles
+ * playback through the same togglePlayPause path as the transport button
+ * (pre-play server refresh included) and flashes a short scrim-circle
+ * acknowledgement showing the action taken, because the audible result can
+ * lag the tap by a beat while the position refresh runs. The scrubber and
+ * chip targets around it are untouched.
+ */
+@Composable
+private fun CoverPlayToggle(
+    state: PlayerUiState,
+    fallbackCoverUrl: String?,
+    onToggle: () -> Unit,
+) {
+    val colors = MaterialTheme.colorScheme
+    // ackPlaying records the action ISSUED (true = play requested), not the
+    // eventual player state: togglePlayPause resolves asynchronously after
+    // its pre-play server check, and the acknowledgement must not wait.
+    var ackPlaying by remember { mutableStateOf<Boolean?>(null) }
+    var ackSeq by remember { mutableStateOf(0) }
+    LaunchedEffect(ackSeq) {
+        if (ackSeq > 0) {
+            delay(COVER_ACK_MS)
+            ackPlaying = null
+        }
+    }
+    Box(
+        modifier = Modifier
+            .sizeIn(maxWidth = 360.dp, maxHeight = 360.dp)
+            .aspectRatio(1f)
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(onClickLabel = if (state.isPlaying) "Pause" else "Play") {
+                ackPlaying = !state.isPlaying
+                ackSeq++
+                onToggle()
+            },
+        contentAlignment = Alignment.Center,
+    ) {
+        CoverArt(
+            model = state.coverUrl ?: fallbackCoverUrl,
+            contentDescription = state.title,
+            title = state.title,
+            containerColor = colors.surfaceVariant,
+            contentColor = colors.onSurfaceVariant,
+            initialsSize = 64.sp,
+            modifier = Modifier.fillMaxSize(),
+        )
+        AnimatedVisibility(
+            visible = ackPlaying != null,
+            enter = fadeIn(),
+            exit = fadeOut(),
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(88.dp)
+                    .background(colors.background.copy(alpha = 0.65f), CircleShape),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = if (ackPlaying == true) Icons.Filled.PlayArrow else Icons.Filled.Pause,
+                    // The clickable's onClickLabel already announces the
+                    // action; a second description here would double-speak.
+                    contentDescription = null,
+                    tint = colors.onBackground,
+                    modifier = Modifier.size(48.dp),
+                )
+            }
+        }
+    }
+}
+
 @Composable
 private fun MetadataBlock(state: PlayerUiState) {
     val colors = MaterialTheme.colorScheme
@@ -343,11 +436,17 @@ private fun ChapterRow(title: String, positionSec: Long, chapter: AbsChapter, sp
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
-            Text(
-                text = formatTimestampHms(ChapterMath.elapsedSec(absSec, chapter).toLong()),
-                color = colors.onSurfaceVariant,
-                style = MaterialTheme.typography.labelMedium,
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                BarTag(text = "CHAPTER")
+                Text(
+                    text = formatTimestampHms(ChapterMath.elapsedSec(absSec, chapter).toLong()),
+                    color = colors.onSurfaceVariant,
+                    style = MaterialTheme.typography.labelMedium,
+                )
+            }
             Text(
                 text = ChapterMath.remainingLabel(ChapterMath.remainingSecAtSpeed(absSec, chapter, speed)),
                 color = colors.onSurfaceVariant,
@@ -357,8 +456,31 @@ private fun ChapterRow(title: String, positionSec: Long, chapter: AbsChapter, sp
     }
 }
 
+/**
+ * Tiny muted tag naming which bar is which, shown only while both bars are
+ * on screen (the chapter row's presence is what makes the pairing
+ * ambiguous). Sits inline with the under-bar timestamps so it costs no
+ * vertical space.
+ */
 @Composable
-private fun ScrubberRow(positionSec: Long, durationSec: Long, speed: Float, onScrub: (Long) -> Unit) {
+private fun BarTag(text: String) {
+    Text(
+        text = text,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        fontSize = 9.sp,
+        letterSpacing = 1.2.sp,
+        maxLines = 1,
+    )
+}
+
+@Composable
+private fun ScrubberRow(
+    positionSec: Long,
+    durationSec: Long,
+    speed: Float,
+    labeled: Boolean,
+    onScrub: (Long) -> Unit,
+) {
     val colors = MaterialTheme.colorScheme
     var dragging by remember { mutableStateOf(false) }
     var dragValueSec by remember { mutableStateOf(positionSec) }
@@ -397,11 +519,19 @@ private fun ScrubberRow(positionSec: Long, durationSec: Long, speed: Float, onSc
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
-            Text(
-                text = formatTimestampHms(displaySec),
-                color = colors.onSurfaceVariant,
-                style = MaterialTheme.typography.labelMedium,
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                if (labeled) {
+                    BarTag(text = "BOOK")
+                }
+                Text(
+                    text = formatTimestampHms(displaySec),
+                    color = colors.onSurfaceVariant,
+                    style = MaterialTheme.typography.labelMedium,
+                )
+            }
             // Same right-endpoint convention as the chapter bar and the TV
             // book bar: speed-aware negative countdown plus book percent.
             // A drag shows the countdown from the drag position live.
@@ -419,19 +549,35 @@ private fun ScrubberRow(positionSec: Long, durationSec: Long, speed: Float, onSc
     }
 }
 
+/**
+ * Transport row, magnitudes growing outward from Play like the TV row:
+ * 5m, 30s, Play, 30s, 5m. Long-skip buttons are labeled "5m" because the
+ * Material Replay/Forward glyph family only mints 5/10/30 second variants
+ * and a bare Replay5 icon would promise seconds, not minutes. 12dp
+ * spacing (down from 24dp with three buttons) plus the 44dp long-skip
+ * targets keep the five-button row inside the foldable cover screen's ~330dp
+ * of usable width.
+ */
 @Composable
 private fun PrimaryControls(
     isPlaying: Boolean,
+    onLongSkipBack: () -> Unit,
     onSkipBack: () -> Unit,
     onPlayPause: () -> Unit,
     onSkipForward: () -> Unit,
+    onLongSkipForward: () -> Unit,
 ) {
     val colors = MaterialTheme.colorScheme
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(24.dp, Alignment.CenterHorizontally),
+        horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        LongSkipButton(
+            forward = false,
+            contentDescription = "Skip back 5 minutes",
+            onClick = onLongSkipBack,
+        )
         IconButton(
             onClick = onSkipBack,
             modifier = Modifier.size(56.dp),
@@ -468,14 +614,51 @@ private fun PrimaryControls(
                 modifier = Modifier.size(36.dp),
             )
         }
+        LongSkipButton(
+            forward = true,
+            contentDescription = "Skip forward 5 minutes",
+            onClick = onLongSkipForward,
+        )
+    }
+}
+
+/**
+ * A labeled long-skip control: fast-rewind/forward glyph over a "5m" tag,
+ * sized under the 30s pair so the visual hierarchy matches the jump
+ * hierarchy (5m outermost and smallest emphasis, Play largest).
+ */
+@Composable
+private fun LongSkipButton(
+    forward: Boolean,
+    contentDescription: String,
+    onClick: () -> Unit,
+) {
+    val colors = MaterialTheme.colorScheme
+    IconButton(
+        onClick = onClick,
+        modifier = Modifier.size(44.dp),
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Icon(
+                imageVector = if (forward) Icons.Filled.FastForward else Icons.Filled.FastRewind,
+                contentDescription = contentDescription,
+                tint = colors.onBackground,
+                modifier = Modifier.size(22.dp),
+            )
+            Text(
+                text = "5m",
+                color = colors.onSurfaceVariant,
+                fontSize = 10.sp,
+                maxLines = 1,
+            )
+        }
     }
 }
 
 @Composable
 private fun SecondaryChips(
     speed: Float,
-    sleepTimerMinutes: Int,
-    sleepTimerRemainingSec: Long?,
+    sleepLabel: String,
     showChapters: Boolean,
     chaptersLabel: String,
     undoAvailable: Boolean,
@@ -485,10 +668,6 @@ private fun SecondaryChips(
     onChaptersClick: () -> Unit,
     onUndoClick: () -> Unit,
 ) {
-    val sleepLabel = formatSleepLabel(
-        selectedMinutes = sleepTimerMinutes,
-        remainingSec = sleepTimerRemainingSec,
-    )
     // Four chips overflow a narrow phone (the foldable cover screen is ~370dp),
     // so the row scrolls sideways. horizontalScroll only relaxes the max
     // constraint: with three chips the layout is untouched and stays
@@ -565,3 +744,4 @@ private fun SecondaryChips(
 }
 
 private const val NOTICE_FRESH_MS = 5_000L
+private const val COVER_ACK_MS = 650L

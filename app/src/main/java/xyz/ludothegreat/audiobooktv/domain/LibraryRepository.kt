@@ -55,9 +55,11 @@ class LibraryRepository @Inject constructor(
         val metadata = media?.metadata
         return Book(
             id = id,
-            title = metadata?.title ?: "Untitled",
-            author = metadata?.authorName,
-            series = metadata?.seriesName,
+            // metadataField turns ABS's ""-for-missing into null so cards,
+            // search, and sort all agree on what "no author" means.
+            title = metadataField(metadata?.title) ?: "Untitled",
+            author = metadataField(metadata?.authorName),
+            series = metadataField(metadata?.seriesName),
             coverUrl = if (baseUrl.isNotEmpty()) "$baseUrl/api/items/$id/cover" else null,
             durationSec = (media?.duration ?: 0.0).toLong(),
             numChapters = media?.numChapters ?: 0,

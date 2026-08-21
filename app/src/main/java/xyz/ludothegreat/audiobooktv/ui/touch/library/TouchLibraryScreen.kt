@@ -25,7 +25,6 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -46,6 +45,9 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import xyz.ludothegreat.audiobooktv.domain.Book
 import xyz.ludothegreat.audiobooktv.ui.common.CoverArt
+import xyz.ludothegreat.audiobooktv.ui.common.CoverProgressBar
+import xyz.ludothegreat.audiobooktv.ui.common.FinishedCheckBadge
+import xyz.ludothegreat.audiobooktv.ui.library.CardMeta
 import xyz.ludothegreat.audiobooktv.ui.library.LibraryFilter
 import xyz.ludothegreat.audiobooktv.ui.library.LibraryViewModel
 import xyz.ludothegreat.audiobooktv.ui.library.SeriesLabel
@@ -170,16 +172,28 @@ private fun SegmentChipRow(segment: StatusSegment, onSegmentSelect: (StatusSegme
 @Composable
 private fun BookTile(book: Book, onClick: () -> Unit) {
     val colors = MaterialTheme.colorScheme
-    val tileAlpha = if (book.isFinished) 0.5f else 1f
+    // Shared derivation with the segment chips (LibraryFilter.statusOf), so
+    // the card treatment can never disagree with the chip that claims the
+    // book. The old bar condition re-derived from raw progressFraction and
+    // did disagree: an isFinished book at 40% showed a bar, and a book at
+    // 99.95% showed nothing.
+    val status = LibraryFilter.statusOf(book)
+    // Dim covers and text only; the check badge and the progress bar keep
+    // full strength on top.
+    val contentAlpha = if (status == StatusSegment.FINISHED) 0.5f else 1f
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .alpha(tileAlpha)
             .clip(RoundedCornerShape(8.dp))
             .clickable(onClick = onClick)
             .padding(4.dp),
     ) {
-        Box(modifier = Modifier.fillMaxWidth().aspectRatio(1f)) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .aspectRatio(1f)
+                .clip(RoundedCornerShape(6.dp)),
+        ) {
             CoverArt(
                 model = book.coverUrl,
                 contentDescription = book.title,
@@ -187,19 +201,22 @@ private fun BookTile(book: Book, onClick: () -> Unit) {
                 containerColor = colors.surfaceVariant,
                 contentColor = colors.onSurfaceVariant,
                 initialsSize = 32.sp,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .clip(RoundedCornerShape(6.dp)),
+                modifier = Modifier.fillMaxSize().alpha(contentAlpha),
             )
-            if (book.progressFraction in 0.001..0.999) {
-                LinearProgressIndicator(
-                    progress = { book.progressFraction.toFloat() },
-                    color = colors.primary,
-                    trackColor = colors.surfaceVariant,
-                    modifier = Modifier
-                        .align(Alignment.BottomStart)
-                        .fillMaxWidth(),
+            when (status) {
+                StatusSegment.STARTED -> CoverProgressBar(
+                    fraction = CardMeta.barFraction(book.progressFraction),
+                    trackColor = colors.background,
+                    fillColor = colors.primary,
+                    modifier = Modifier.align(Alignment.BottomCenter),
                 )
+                StatusSegment.FINISHED -> FinishedCheckBadge(
+                    containerColor = colors.primary,
+                    contentColor = colors.onPrimary,
+                    size = 20.dp,
+                    modifier = Modifier.align(Alignment.TopEnd).padding(6.dp),
+                )
+                StatusSegment.NEW, StatusSegment.ALL -> Unit
             }
         }
         Text(
@@ -209,7 +226,7 @@ private fun BookTile(book: Book, onClick: () -> Unit) {
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
             textAlign = TextAlign.Start,
-            modifier = Modifier.padding(top = 4.dp),
+            modifier = Modifier.alpha(contentAlpha).padding(top = 4.dp),
         )
         SeriesLabel.seriesLine(book.series)?.let { line ->
             Text(
@@ -219,6 +236,18 @@ private fun BookTile(book: Book, onClick: () -> Unit) {
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 textAlign = TextAlign.Start,
+                modifier = Modifier.alpha(contentAlpha),
+            )
+        }
+        CardMeta.metaLine(book.author, book.durationSec)?.let { line ->
+            Text(
+                text = line,
+                color = colors.onSurfaceVariant,
+                style = MaterialTheme.typography.labelSmall,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.Start,
+                modifier = Modifier.alpha(contentAlpha),
             )
         }
     }

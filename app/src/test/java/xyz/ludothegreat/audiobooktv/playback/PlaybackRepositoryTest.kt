@@ -8,6 +8,7 @@ import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -123,13 +124,14 @@ class PlaybackRepositoryTest {
     fun `syncProgress posts current time, listened delta, and duration`() = runTest {
         server.enqueue(MockResponse().setResponseCode(200))
 
-        subject.syncProgress(
+        val confirmed = subject.syncProgress(
             sessionId = "sid",
             currentTimeSec = 200.0,
             timeListenedSec = 10.0,
             durationSec = 3600.0,
         )
 
+        assertTrue(confirmed)
         val recorded = server.takeRequest(2, TimeUnit.SECONDS)
         assertEquals("/api/session/sid/sync", recorded?.path)
         val body = Json.parseToJsonElement(recorded!!.body.readUtf8()).jsonObject
@@ -139,16 +141,19 @@ class PlaybackRepositoryTest {
     }
 
     @Test
-    fun `syncProgress swallows server errors and does not throw`() = runTest {
+    fun `syncProgress reports server errors as unconfirmed without throwing`() = runTest {
         server.enqueue(MockResponse().setResponseCode(500))
         // Must NOT throw -- the PlayerViewModel ticker fires every 10s and
-        // can't be allowed to crash the VM on a transient outage.
-        subject.syncProgress(
+        // can't be allowed to crash the VM on a transient outage. But the
+        // failure must surface as false: the caller keeps the local position
+        // record dirty on it, which is what crash recovery replays.
+        val confirmed = subject.syncProgress(
             sessionId = "sid",
             currentTimeSec = 200.0,
             timeListenedSec = 10.0,
             durationSec = 3600.0,
         )
+        assertFalse(confirmed)
     }
 
     @Test

@@ -37,6 +37,16 @@ class AppSettings @Inject constructor(
      */
     val sleepTimerMinutes: Flow<Int> = store.data.map { it[KEY_SLEEP_TIMER_MINUTES] ?: 0 }
 
+    /**
+     * Whether the sleep timer stops at a chapter end. Combines with
+     * [sleepTimerMinutes]: 0 + true is "end of current chapter", N + true
+     * is "count down N minutes, then run out the chapter playing at that
+     * moment". Setting the minutes preset to 0 (Off) clears this flag too,
+     * from PlayerViewModel.setSleepTimerMinutes: Off is the master off
+     * switch for every automatic pause.
+     */
+    val sleepEndOfChapter: Flow<Boolean> = store.data.map { it[KEY_SLEEP_TIMER_EOC] ?: false }
+
     suspend fun setStopOnAppClose(value: Boolean) {
         store.edit { it[KEY_STOP_ON_APP_CLOSE] = value }
     }
@@ -53,6 +63,10 @@ class AppSettings @Inject constructor(
         store.edit { it[KEY_SLEEP_TIMER_MINUTES] = minutes.coerceAtLeast(0) }
     }
 
+    suspend fun setSleepEndOfChapter(enabled: Boolean) {
+        store.edit { it[KEY_SLEEP_TIMER_EOC] = enabled }
+    }
+
     suspend fun stopOnAppCloseSnapshot(): Boolean = stopOnAppClose.first()
     suspend fun diagnosticLogEnabledSnapshot(): Boolean = diagnosticLogEnabled.first()
 
@@ -61,5 +75,6 @@ class AppSettings @Inject constructor(
         private val KEY_DIAGNOSTIC_LOG = booleanPreferencesKey("diagnostic_log")
         private val KEY_SELECTED_THEME = stringPreferencesKey("selected_theme")
         private val KEY_SLEEP_TIMER_MINUTES = intPreferencesKey("sleep_timer_minutes")
+        private val KEY_SLEEP_TIMER_EOC = booleanPreferencesKey("sleep_timer_end_of_chapter")
     }
 }

@@ -64,18 +64,22 @@ class PlaybackRepository @Inject constructor(
         apiProvider.get().progress(itemId).currentTime
     }.getOrNull()
 
-    suspend fun syncProgress(sessionId: String, currentTimeSec: Double, timeListenedSec: Double, durationSec: Double) {
-        runCatching {
-            apiProvider.get().syncSession(
-                sessionId,
-                SessionSyncRequest(
-                    currentTime = currentTimeSec,
-                    timeListened = timeListenedSec,
-                    duration = durationSec,
-                ),
-            )
-        }
-    }
+    /**
+     * Returns whether the server confirmed the sync. A false return must not
+     * throw (the 10s ticker rides on it), but it must also not disappear:
+     * the caller keeps the local position record dirty on failure so the
+     * reconciler can replay unconfirmed progress after a crash.
+     */
+    suspend fun syncProgress(sessionId: String, currentTimeSec: Double, timeListenedSec: Double, durationSec: Double): Boolean = runCatching {
+        apiProvider.get().syncSession(
+            sessionId,
+            SessionSyncRequest(
+                currentTime = currentTimeSec,
+                timeListened = timeListenedSec,
+                duration = durationSec,
+            ),
+        )
+    }.isSuccess
 
     suspend fun closeSession(sessionId: String) {
         runCatching { apiProvider.get().closeSession(sessionId) }
