@@ -43,6 +43,7 @@ import xyz.ludothegreat.audiobooktv.playback.SeekCause
 import xyz.ludothegreat.audiobooktv.playback.SeekHistory
 import xyz.ludothegreat.audiobooktv.playback.SeekTargets
 import xyz.ludothegreat.audiobooktv.playback.SleepCountdown
+import xyz.ludothegreat.audiobooktv.playback.SleepEocGate
 import xyz.ludothegreat.audiobooktv.playback.formatTimestampHms
 import javax.inject.Inject
 
@@ -75,6 +76,15 @@ data class PlayerUiState(
     val sleepTimerMinutes: Int = 0,
     /** Live countdown remaining in seconds, or null when no timer is ticking. */
     val sleepTimerRemainingSec: Long? = null,
+    /**
+     * Sleep-timer end-of-chapter SETTING, straight from DataStore. The
+     * surfaces derive the effective mode per book (`&& chapters exist`)
+     * because a chapter stop can never fire on a chapterless book and the
+     * label must not promise one.
+     */
+    val sleepEndOfChapter: Boolean = false,
+    /** True while an armed chapter stop is running out the current chapter. */
+    val sleepEocWaiting: Boolean = false,
     val sleepTimerPanelVisible: Boolean = false,
     /** Where undoSeek() would take the player, or null when there is nothing to undo. */
     val undoSeekTargetSec: Long? = null,
@@ -136,11 +146,12 @@ class PlayerViewModel @Inject constructor(
     private var firstErrorWallClockMs: Long = 0
     private var lastSyncWallClockMs: Long = 0
     private val seekHistory = SeekHistory()
+    private val sleepEocGate = SleepEocGate()
     private var noticeSeq: Long = 0
 
     private val sleepCountdown = SleepCountdown(
         scope = viewModelScope,
-        onFire = { controller?.pause() },
+        onFire = { onSleepCountdownFired() },
         onRemainingChanged = { remainingMs ->
             _state.update { it.copy(sleepTimerRemainingSec = remainingMs?.div(1000)) }
         },
@@ -172,9 +183,61 @@ class PlayerViewModel @Inject constructor(
                 if (minutes != prev) {
                     sleepCountdown.setDuration(minutes)
                     if (controller?.isPlaying == true) sleepCountdown.resume()
+                    // A positive preset restarts the sequence from the
+                    // countdown, so any already-armed chapter stop (the
+                    // combined mode's second phase) is superseded.
+                    if (minutes > 0) {
+                        sleepEocGate.disarm()
+                        _state.update { it.copy(sleepEocWaiting = false) }
+                    }
                 }
             }
         }
+        viewModelScope.launch {
+            appSettings.sleepEndOfChapter.collect { eoc ->
+                val prev = _state.value.sleepEndOfChapter
+                _state.update { it.copy(sleepEndOfChapter = eoc) }
+                if (eoc == prev) return@collect
+                if (!eoc) {
+                    // Off switch for the chapter stop: a stop that is already
+                    // running out its chapter is cancelled too, not just the
+                    // next arming.
+                    sleepEocGate.disarm()
+                    _state.update { it.copy(sleepEocWaiting = false) }
+                } else if (
+                    controller?.isPlaying == true &&
+                    _state.value.sleepTimerMinutes == 0 &&
+                    chapters.isNotEmpty()
+                ) {
+                    // End-of-chapter-only picked mid-play: arm immediately.
+                    // With minutes > 0 the running countdown arms the gate
+                    // itself when it fires.
+                    sleepEocGate.arm(currentChapterIndex())
+                    _state.update { it.copy(sleepEocWaiting = true) }
+                }
+            }
+        }
+    }
+
+    /**
+     * The countdown ran out. Plain mode pauses on the spot. Combined mode
+     * hands over to the chapter gate so playback runs out the chapter the
+     * user is hearing -- unless the book has no chapters, in which case
+     * arming a gate that can never fire would turn the sleep timer into a
+     * silent no-op, so it degrades to the plain pause.
+     */
+    private fun onSleepCountdownFired() {
+        if (_state.value.sleepEndOfChapter && chapters.isNotEmpty()) {
+            sleepEocGate.arm(currentChapterIndex())
+            _state.update { it.copy(sleepEocWaiting = true) }
+        } else {
+            controller?.pause()
+        }
+    }
+
+    private fun currentChapterIndex(): Int? {
+        val ctl = controller ?: return null
+        return ChapterMath.indexAt(absolutePositionSec(ctl).toDouble(), chapters)
     }
 
     private fun bindController() {
@@ -191,6 +254,20 @@ class PlayerViewModel @Inject constructor(
                             lastSyncWallClockMs = System.currentTimeMillis()
                             startSyncTimer()
                             sleepCountdown.resume()
+                            val st = _state.value
+                            val eocOnly = st.sleepEndOfChapter &&
+                                st.sleepTimerMinutes == 0 &&
+                                chapters.isNotEmpty()
+                            if (eocOnly && !sleepEocGate.armed) {
+                                // End-of-chapter-only mode arms on every play,
+                                // mirroring how the countdown presets re-arm.
+                                sleepEocGate.arm(currentChapterIndex())
+                                _state.update { it.copy(sleepEocWaiting = true) }
+                            } else {
+                                // An armed stop survives a pause; re-target it
+                                // in case a paused-poll sync moved the head.
+                                sleepEocGate.reseed(currentChapterIndex())
+                            }
                         } else {
                             stopSyncTimer()
                             // Flush one last sync on pause so server sees the
@@ -247,6 +324,14 @@ class PlayerViewModel @Inject constructor(
                 val ctl = controller ?: continue
                 if (ctl.duration <= 0) continue
                 val absSec = absolutePositionSec(ctl)
+                if (sleepEocGate.armed &&
+                    ctl.isPlaying &&
+                    sleepEocGate.onChapterTick(ChapterMath.indexAt(absSec.toDouble(), chapters))
+                ) {
+                    // The chapter the sleep gate was tracking just ended.
+                    ctl.pause()
+                    _state.update { it.copy(sleepEocWaiting = false) }
+                }
                 val current = _state.value
                 val newChapter = currentChapterTitle(absSec.toDouble())
                 // Only emit a state change when something the user can see has
@@ -274,6 +359,7 @@ class PlayerViewModel @Inject constructor(
         _state.update { it.copy(undoSeekTargetSec = null) }
         if (!controllerReady.value) {
             pendingLoad = itemId to coverUrl
+            sleepEocGate.disarm()
             _state.update {
                 it.copy(
                     loading = true,
@@ -282,6 +368,7 @@ class PlayerViewModel @Inject constructor(
                     positionSec = 0,
                     durationSec = 0,
                     chapters = emptyList(),
+                    sleepEocWaiting = false,
                     error = null,
                 )
             }
@@ -297,7 +384,11 @@ class PlayerViewModel @Inject constructor(
         // New playback resets the sleep timer to its selected preset value.
         // If the timer was at 5 min remaining of a 30-min preset and the
         // user opens a different book, the next playback gets a fresh 30 min.
+        // Same for the chapter gate: an armed stop is stale against the new
+        // book's chapter list, so it disarms and re-arms per the setting
+        // when playback starts.
         sleepCountdown.setDuration(_state.value.sleepTimerMinutes)
+        sleepEocGate.disarm()
         // Clear the previous book's chapters AND position envelope for the
         // whole load window. Stale chapter data against the new book's
         // positions would light up a wrong (or ghost) chapter bar, and a
@@ -313,6 +404,7 @@ class PlayerViewModel @Inject constructor(
                 positionSec = 0,
                 durationSec = 0,
                 chapters = emptyList(),
+                sleepEocWaiting = false,
                 error = null,
             )
         }
@@ -452,6 +544,9 @@ class PlayerViewModel @Inject constructor(
         }
         pushPositionToServer(target.toDouble())
         recordUserSeek(fromSec = fromSec, toSec = target, cause = cause)
+        // A deliberate jump is not a chapter ending: an armed sleep gate
+        // re-targets to the chapter the user just landed in.
+        sleepEocGate.reseed(ChapterMath.indexAt(target.toDouble(), chapters))
     }
 
     private fun recordUserSeek(fromSec: Long, toSec: Long, cause: SeekCause) {
@@ -489,7 +584,14 @@ class PlayerViewModel @Inject constructor(
     }
 
     fun setSleepTimerMinutes(minutes: Int) {
-        viewModelScope.launch { appSettings.setSleepTimerMinutes(minutes) }
+        viewModelScope.launch {
+            appSettings.setSleepTimerMinutes(minutes)
+            // Off is the master off switch: it clears the end-of-chapter
+            // flag too, so no automatic pause of any kind survives an
+            // explicit Off. The eoc collector disarms the gate on the
+            // emission.
+            if (minutes == 0) appSettings.setSleepEndOfChapter(false)
+        }
         // observeSleepTimerPreset() will re-apply the duration on the
         // DataStore emission. Resume eagerly if currently playing so the
         // user sees the count start immediately rather than after a tick.
@@ -497,6 +599,12 @@ class PlayerViewModel @Inject constructor(
             sleepCountdown.setDuration(minutes)
             sleepCountdown.resume()
         }
+    }
+
+    fun setSleepEndOfChapter(enabled: Boolean) {
+        // The DataStore emission drives arming/disarming in one place
+        // (observeSleepTimerPreset's eoc collector).
+        viewModelScope.launch { appSettings.setSleepEndOfChapter(enabled) }
     }
 
     fun openChapterPanel() {

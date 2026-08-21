@@ -168,8 +168,12 @@ fun TouchPlayerScreen(
 
             SecondaryChips(
                 speed = state.speed,
-                sleepTimerMinutes = state.sleepTimerMinutes,
-                sleepTimerRemainingSec = state.sleepTimerRemainingSec,
+                sleepLabel = formatSleepLabel(
+                    selectedMinutes = state.sleepTimerMinutes,
+                    remainingSec = state.sleepTimerRemainingSec,
+                    endOfChapter = state.sleepEndOfChapter && state.chapters.isNotEmpty(),
+                    eocWaiting = state.sleepEocWaiting,
+                ),
                 showChapters = state.chapters.isNotEmpty(),
                 chaptersLabel = ChapterMath.counterLabel(chapterIndex, state.chapters.size),
                 undoAvailable = state.undoSeekTargetSec != null,
@@ -205,10 +209,13 @@ private fun PlayerSheets(state: PlayerUiState, viewModel: PlayerViewModel) {
     if (state.sleepTimerPanelVisible) {
         TouchSleepSheet(
             currentMinutes = state.sleepTimerMinutes,
+            endOfChapter = state.sleepEndOfChapter,
+            showEndOfChapter = state.chapters.isNotEmpty(),
             onPick = { minutes ->
                 viewModel.setSleepTimerMinutes(minutes)
                 viewModel.closeSleepTimerPanel()
             },
+            onToggleEndOfChapter = viewModel::setSleepEndOfChapter,
             onDismiss = viewModel::closeSleepTimerPanel,
         )
     }
@@ -580,8 +587,7 @@ private fun LongSkipButton(
 @Composable
 private fun SecondaryChips(
     speed: Float,
-    sleepTimerMinutes: Int,
-    sleepTimerRemainingSec: Long?,
+    sleepLabel: String,
     showChapters: Boolean,
     chaptersLabel: String,
     undoAvailable: Boolean,
@@ -591,10 +597,6 @@ private fun SecondaryChips(
     onChaptersClick: () -> Unit,
     onUndoClick: () -> Unit,
 ) {
-    val sleepLabel = formatSleepLabel(
-        selectedMinutes = sleepTimerMinutes,
-        remainingSec = sleepTimerRemainingSec,
-    )
     // Four chips overflow a narrow phone (the foldable cover screen is ~370dp),
     // so the row scrolls sideways. horizontalScroll only relaxes the max
     // constraint: with three chips the layout is untouched and stays

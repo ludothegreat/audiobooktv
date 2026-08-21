@@ -150,7 +150,12 @@ fun PlayerScreen(
                     ControlRow(
                         isPlaying = state.isPlaying,
                         speed = state.speed,
-                        sleepLabel = formatSleepLabel(state.sleepTimerMinutes, state.sleepTimerRemainingSec),
+                        sleepLabel = formatSleepLabel(
+                            selectedMinutes = state.sleepTimerMinutes,
+                            remainingSec = state.sleepTimerRemainingSec,
+                            endOfChapter = state.sleepEndOfChapter && state.chapters.isNotEmpty(),
+                            eocWaiting = state.sleepEocWaiting,
+                        ),
                         transport = TransportActions(
                             onLongSkipBack = viewModel::skipBackLong,
                             onSkipBack = viewModel::skipBack30,
@@ -215,7 +220,10 @@ fun PlayerScreen(
             SleepTimerPanel(
                 currentMinutes = state.sleepTimerMinutes,
                 remainingSec = state.sleepTimerRemainingSec,
+                endOfChapter = state.sleepEndOfChapter,
+                showEndOfChapter = state.chapters.isNotEmpty(),
                 onSelect = viewModel::setSleepTimerMinutes,
+                onToggleEndOfChapter = viewModel::setSleepEndOfChapter,
                 onDismiss = viewModel::closeSleepTimerPanel,
             )
         }

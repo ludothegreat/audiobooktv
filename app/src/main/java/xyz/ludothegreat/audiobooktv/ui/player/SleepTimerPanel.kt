@@ -8,6 +8,7 @@ import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -44,7 +45,10 @@ import androidx.tv.material3.Text
 fun SleepTimerPanel(
     currentMinutes: Int,
     remainingSec: Long?,
+    endOfChapter: Boolean,
+    showEndOfChapter: Boolean,
     onSelect: (Int) -> Unit,
+    onToggleEndOfChapter: (Boolean) -> Unit,
     onDismiss: () -> Unit,
 ) {
     val colors = MaterialTheme.colorScheme
@@ -128,8 +132,68 @@ fun SleepTimerPanel(
                     }
                 }
 
+                // Only offered when the loaded book has chapter data: a
+                // chapter stop can never fire on a chapterless book, so
+                // showing the switch there would arm a promise the player
+                // cannot keep. Toggling does NOT dismiss -- the point is
+                // combining it with a minutes preset in one panel visit.
+                if (showEndOfChapter) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    EndOfChapterRow(
+                        endOfChapter = endOfChapter,
+                        onToggle = { onToggleEndOfChapter(!endOfChapter) },
+                        colors = colors,
+                    )
+                    if (endOfChapter && currentMinutes > 0) {
+                        Text(
+                            text = "Counts down $currentMinutes min, then stops at the chapter end",
+                            color = colors.onSurfaceVariant,
+                            fontSize = 12.sp,
+                        )
+                    }
+                }
+
                 LaunchedEffect(Unit) { initialFocus.requestFocus() }
             }
+        }
+    }
+}
+
+/**
+ * The end-of-chapter switch row. Same Surface idiom as the preset rows;
+ * the trailing On/Off word makes the state readable at 10 feet without
+ * relying on fill alone.
+ */
+@Composable
+private fun EndOfChapterRow(
+    endOfChapter: Boolean,
+    onToggle: () -> Unit,
+    colors: androidx.tv.material3.ColorScheme,
+) {
+    Surface(
+        onClick = onToggle,
+        shape = ClickableSurfaceDefaults.shape(shape = RoundedCornerShape(8.dp)),
+        colors = ClickableSurfaceDefaults.colors(
+            containerColor = if (endOfChapter) colors.primary else colors.background,
+            contentColor = if (endOfChapter) colors.onPrimary else colors.onSurface,
+            focusedContainerColor = if (endOfChapter) colors.primary else colors.background,
+            focusedContentColor = if (endOfChapter) colors.onPrimary else colors.onSurface,
+        ),
+        border = ClickableSurfaceDefaults.border(
+            focusedBorder = Border(
+                border = BorderStroke(2.dp, colors.secondary),
+                shape = RoundedCornerShape(8.dp),
+            ),
+        ),
+        modifier = Modifier.fillMaxWidth().height(44.dp),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Text(text = "End of chapter", fontSize = 18.sp)
+            Text(text = if (endOfChapter) "On" else "Off", fontSize = 14.sp)
         }
     }
 }
