@@ -40,6 +40,13 @@ import androidx.tv.material3.Text
  * filled with primary (green) and outlined with secondary (orange) when
  * focused. No on-screen keyboard, no numeric entry - D-pad picks a
  * preset from a fixed list (decision: ship with the locked grain).
+ *
+ * Row height and spacing are budgeted to 1080p: v1.1.1 shrank 52dp rows
+ * to 44dp to fit SEVEN presets, and the end-of-chapter row made it
+ * EIGHT, which clipped the last row off the panel's bottom edge on the
+ * TV device. 40dp rows at 4dp spacing hold all eight plus the combined-
+ * mode caption with margin. The next row added here must re-check the
+ * on-device fit, not just the build.
  */
 @Composable
 fun SleepTimerPanel(
@@ -70,7 +77,7 @@ fun SleepTimerPanel(
                 .padding(24.dp),
         ) {
             Column(
-                verticalArrangement = Arrangement.spacedBy(6.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
                 modifier = Modifier.fillMaxWidth().focusGroup(),
             ) {
                 Text(
@@ -96,7 +103,7 @@ fun SleepTimerPanel(
                     val isCurrent = minutes == currentMinutes
                     val mod = Modifier
                         .fillMaxWidth()
-                        .height(44.dp)
+                        .height(40.dp)
                         .let { if (index == currentIndex) it.focusRequester(initialFocus) else it }
 
                     Surface(
@@ -185,7 +192,7 @@ private fun EndOfChapterRow(
                 shape = RoundedCornerShape(8.dp),
             ),
         ),
-        modifier = Modifier.fillMaxWidth().height(44.dp),
+        modifier = Modifier.fillMaxWidth().height(40.dp),
     ) {
         Row(
             modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp),
