@@ -31,14 +31,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.input.key.Key
-import androidx.compose.ui.input.key.KeyEventType
-import androidx.compose.ui.input.key.key
-import androidx.compose.ui.input.key.onPreviewKeyEvent
-import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -52,6 +46,7 @@ import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
 import xyz.ludothegreat.audiobooktv.domain.Book
 import xyz.ludothegreat.audiobooktv.ui.common.CoverArt
+import xyz.ludothegreat.audiobooktv.ui.common.dpadFocusEscape
 
 @Composable
 fun LibraryScreen(
@@ -140,33 +135,12 @@ private fun FilterHeader(
                 focusedContainerColor = colors.surface,
                 unfocusedContainerColor = colors.surface,
             ),
-            // A focused Compose TextField consumes every D-pad direction as
-            // an editor key, so once the search field had focus the chips and
-            // the grid were unreachable by remote (proven on the TV device:
-            // Right/Down/Up all dead-ended in the field). While the on-screen
-            // keyboard is up it eats the D-pad before the app sees it, so
-            // this preview handler only fires after the IME is dismissed;
-            // at that point every direction becomes a focus move. Cursor
-            // movement inside the query is still available through the IME's
-            // own arrow keys.
+            // Without the escape, the focused field consumed every D-pad
+            // direction and the chips and grid were unreachable by remote
+            // (proven on the TV device). See dpadFocusEscape for the mechanism.
             modifier = Modifier
                 .width(280.dp)
-                .onPreviewKeyEvent { event ->
-                    if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
-                    val direction = when (event.key) {
-                        Key.DirectionRight -> FocusDirection.Right
-                        Key.DirectionLeft -> FocusDirection.Left
-                        Key.DirectionDown -> FocusDirection.Down
-                        Key.DirectionUp -> FocusDirection.Up
-                        else -> null
-                    }
-                    if (direction != null) {
-                        focusManager.moveFocus(direction)
-                        true
-                    } else {
-                        false
-                    }
-                },
+                .dpadFocusEscape(focusManager),
         )
         StatusSegment.entries.forEach { candidate ->
             SegmentChip(
