@@ -23,7 +23,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -35,13 +34,13 @@ import androidx.tv.material3.Button
 import androidx.tv.material3.ButtonDefaults
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
-import coil3.compose.AsyncImage
 import xyz.ludothegreat.audiobooktv.R
 import xyz.ludothegreat.audiobooktv.data.abs.dto.AbsChapter
 import xyz.ludothegreat.audiobooktv.playback.BookProgress
 import xyz.ludothegreat.audiobooktv.playback.ChapterMath
 import xyz.ludothegreat.audiobooktv.playback.formatSleepLabel
 import xyz.ludothegreat.audiobooktv.playback.formatTimestampHms
+import xyz.ludothegreat.audiobooktv.ui.common.CoverArt
 
 @Composable
 fun PlayerScreen(
@@ -75,15 +74,17 @@ fun PlayerScreen(
         }
 
         Row(modifier = Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(32.dp)) {
-            AsyncImage(
+            CoverArt(
                 model = state.coverUrl ?: coverUrl,
                 contentDescription = state.title,
-                contentScale = ContentScale.Crop,
+                title = state.title,
+                containerColor = colors.surfaceVariant,
+                contentColor = colors.onSurfaceVariant,
+                initialsSize = 64.sp,
                 modifier = Modifier
                     .fillMaxHeight()
                     .width(280.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(colors.surface),
+                    .clip(RoundedCornerShape(8.dp)),
             )
 
             Column(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.SpaceBetween) {
@@ -149,8 +150,14 @@ fun PlayerScreen(
                         onCycleSpeed = viewModel::openSpeedPanel,
                         onBookmark = viewModel::openBookmarkPanel,
                         onSleepTimer = viewModel::openSleepTimerPanel,
-                        onChapters = if (state.chapters.isNotEmpty()) viewModel::openChapterPanel else null,
-                        chaptersLabel = ChapterMath.counterLabel(chapterIndex, state.chapters.size),
+                        chaptersControl = if (state.chapters.isNotEmpty()) {
+                            ChaptersControl(
+                                label = ChapterMath.counterLabel(chapterIndex, state.chapters.size),
+                                onOpen = viewModel::openChapterPanel,
+                            )
+                        } else {
+                            null
+                        },
                         colors = colors,
                     )
                     state.undoSeekTargetSec?.let { undoTarget ->
@@ -294,6 +301,9 @@ private fun ProgressRow(positionSec: Long, durationSec: Long, speed: Float, colo
     }
 }
 
+/** The chapter affordance of the control row: its live counter label plus the picker opener. */
+private data class ChaptersControl(val label: String, val onOpen: () -> Unit)
+
 @Composable
 private fun ControlRow(
     isPlaying: Boolean,
@@ -305,8 +315,7 @@ private fun ControlRow(
     onCycleSpeed: () -> Unit,
     onBookmark: () -> Unit,
     onSleepTimer: () -> Unit,
-    onChapters: (() -> Unit)?,
-    chaptersLabel: String,
+    chaptersControl: ChaptersControl?,
     colors: androidx.tv.material3.ColorScheme,
 ) {
     Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -321,8 +330,8 @@ private fun ControlRow(
         // answers "where am I" without opening the picker and is narrower
         // than the word "Chapters" that used to clip at the screen edge.
         // The ControlButton ellipsis canary still guards label drift.
-        if (onChapters != null) {
-            ControlButton(label = chaptersLabel, onClick = onChapters, colors = colors)
+        if (chaptersControl != null) {
+            ControlButton(label = chaptersControl.label, onClick = chaptersControl.onOpen, colors = colors)
         }
     }
 }

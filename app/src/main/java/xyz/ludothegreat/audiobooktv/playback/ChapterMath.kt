@@ -63,8 +63,7 @@ object ChapterMath {
      * index is unknown; the count alone still tells the user how much
      * structure the book has.
      */
-    fun counterLabel(chapterIndex: Int?, chapterCount: Int): String =
-        if (chapterIndex != null) "Ch ${chapterIndex + 1}/$chapterCount" else "Ch -/$chapterCount"
+    fun counterLabel(chapterIndex: Int?, chapterCount: Int): String = if (chapterIndex != null) "Ch ${chapterIndex + 1}/$chapterCount" else "Ch -/$chapterCount"
 
     /**
      * Whole-second seek target for a chapter jump. Ceil, not truncate: ABS

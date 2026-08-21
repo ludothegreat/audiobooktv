@@ -32,7 +32,6 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -43,8 +42,8 @@ import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
-import coil3.compose.AsyncImage
 import xyz.ludothegreat.audiobooktv.domain.Book
+import xyz.ludothegreat.audiobooktv.ui.common.CoverArt
 
 @Composable
 fun LibraryScreen(
@@ -239,15 +238,17 @@ private fun BookTile(book: Book, onClick: () -> Unit, modifier: Modifier = Modif
         modifier = modifier.fillMaxWidth().alpha(tileAlpha),
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
-            AsyncImage(
+            CoverArt(
                 model = book.coverUrl,
                 contentDescription = book.title,
-                contentScale = ContentScale.Crop,
+                title = book.title,
+                containerColor = colors.surfaceVariant,
+                contentColor = colors.onSurfaceVariant,
+                initialsSize = 32.sp,
                 modifier = Modifier
                     .fillMaxWidth()
                     .aspectRatio(1f)
-                    .clip(RoundedCornerShape(topStart = 6.dp, topEnd = 6.dp))
-                    .background(colors.background),
+                    .clip(RoundedCornerShape(topStart = 6.dp, topEnd = 6.dp)),
             )
             Text(
                 text = SeriesLabel.numberedTitle(book.title, book.series),

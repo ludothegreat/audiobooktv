@@ -51,19 +51,19 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import coil3.compose.AsyncImage
 import xyz.ludothegreat.audiobooktv.R
 import xyz.ludothegreat.audiobooktv.data.abs.dto.AbsChapter
 import xyz.ludothegreat.audiobooktv.playback.BookProgress
 import xyz.ludothegreat.audiobooktv.playback.ChapterMath
 import xyz.ludothegreat.audiobooktv.playback.formatSleepLabel
 import xyz.ludothegreat.audiobooktv.playback.formatTimestampHms
+import xyz.ludothegreat.audiobooktv.ui.common.CoverArt
 import xyz.ludothegreat.audiobooktv.ui.player.PlayerUiState
 import xyz.ludothegreat.audiobooktv.ui.player.PlayerViewModel
 
@@ -108,17 +108,19 @@ fun TouchPlayerScreen(
             .padding(horizontal = 24.dp, vertical = 16.dp),
     ) {
         Column(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            AsyncImage(
+            CoverArt(
                 model = state.coverUrl ?: coverUrl,
                 contentDescription = state.title,
-                contentScale = ContentScale.Crop,
+                title = state.title,
+                containerColor = colors.surfaceVariant,
+                contentColor = colors.onSurfaceVariant,
+                initialsSize = 64.sp,
                 modifier = Modifier
                     .fillMaxWidth()
                     .widthIn(max = 360.dp)
                     .aspectRatio(1f)
                     .align(Alignment.CenterHorizontally)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(colors.surface),
+                    .clip(RoundedCornerShape(12.dp)),
             )
 
             MetadataBlock(state = state)

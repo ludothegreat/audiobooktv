@@ -39,13 +39,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import coil3.compose.AsyncImage
 import xyz.ludothegreat.audiobooktv.domain.Book
+import xyz.ludothegreat.audiobooktv.ui.common.CoverArt
 import xyz.ludothegreat.audiobooktv.ui.library.LibraryFilter
 import xyz.ludothegreat.audiobooktv.ui.library.LibraryViewModel
 import xyz.ludothegreat.audiobooktv.ui.library.SeriesLabel
@@ -180,14 +180,16 @@ private fun BookTile(book: Book, onClick: () -> Unit) {
             .padding(4.dp),
     ) {
         Box(modifier = Modifier.fillMaxWidth().aspectRatio(1f)) {
-            AsyncImage(
+            CoverArt(
                 model = book.coverUrl,
                 contentDescription = book.title,
-                contentScale = ContentScale.Crop,
+                title = book.title,
+                containerColor = colors.surfaceVariant,
+                contentColor = colors.onSurfaceVariant,
+                initialsSize = 32.sp,
                 modifier = Modifier
                     .fillMaxSize()
-                    .clip(RoundedCornerShape(6.dp))
-                    .background(colors.surface),
+                    .clip(RoundedCornerShape(6.dp)),
             )
             if (book.progressFraction in 0.001..0.999) {
                 LinearProgressIndicator(
