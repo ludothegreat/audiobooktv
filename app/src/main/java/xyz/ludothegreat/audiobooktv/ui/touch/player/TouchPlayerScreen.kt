@@ -19,6 +19,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Toc
+import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Forward30
 import androidx.compose.material.icons.filled.NightsStay
@@ -35,6 +36,10 @@ import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -80,12 +85,15 @@ fun TouchPlayerScreen(
 ) {
     val state by viewModel.state.collectAsState()
     val colors = MaterialTheme.colorScheme
+    val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(itemId) {
         if (!itemId.isNullOrBlank()) {
             viewModel.load(itemId, coverUrl)
         }
     }
+
+    NoticeSnackbars(state = state, hostState = snackbarHostState, onUndo = viewModel::undoSeek)
 
     if (itemId.isNullOrBlank()) {
         EmptyPlayer(onOpenLibrary)
@@ -144,12 +152,19 @@ fun TouchPlayerScreen(
                 sleepTimerMinutes = state.sleepTimerMinutes,
                 sleepTimerRemainingSec = state.sleepTimerRemainingSec,
                 showChapters = state.chapters.isNotEmpty(),
+                undoAvailable = state.undoSeekTargetSec != null,
                 onSpeedClick = viewModel::openSpeedPanel,
                 onSleepClick = viewModel::openSleepTimerPanel,
                 onBookmarkClick = viewModel::openBookmarkPanel,
                 onChaptersClick = viewModel::openChapterPanel,
+                onUndoClick = viewModel::undoSeek,
             )
         }
+
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier.align(Alignment.BottomCenter),
+        )
     }
 
     PlayerSheets(state = state, viewModel = viewModel)
@@ -193,13 +208,45 @@ private fun PlayerSheets(state: PlayerUiState, viewModel: PlayerViewModel) {
             bookmarks = state.bookmarks,
             loading = state.bookmarksLoading,
             currentPositionSec = state.positionSec,
+            notice = state.bookmarkNotice,
             onAddHere = viewModel::addBookmarkHere,
+            onRename = viewModel::renameBookmark,
+            onDelete = viewModel::deleteBookmark,
             onJump = { bookmark ->
                 viewModel.jumpToBookmark(bookmark)
                 viewModel.closeBookmarkPanel()
             },
             onDismiss = viewModel::closeBookmarkPanel,
         )
+    }
+}
+
+/**
+ * Keyed on seq so every seek re-fires; the freshness check stops a stale
+ * notice from replaying when a tab switch re-enters this composition with
+ * the same state. Undo runs through the ViewModel so it is a normal
+ * clamp-seek-push seek, which in turn raises the next notice (redo).
+ */
+@Composable
+private fun NoticeSnackbars(
+    state: PlayerUiState,
+    hostState: SnackbarHostState,
+    onUndo: () -> Unit,
+) {
+    LaunchedEffect(state.seekNotice?.seq) {
+        val notice = state.seekNotice ?: return@LaunchedEffect
+        if (System.currentTimeMillis() - notice.atMs > NOTICE_FRESH_MS) return@LaunchedEffect
+        val result = hostState.showSnackbar(
+            message = "Jumped to ${formatTimestampHms(notice.toSec)}",
+            actionLabel = "Undo",
+            duration = SnackbarDuration.Short,
+        )
+        if (result == SnackbarResult.ActionPerformed) onUndo()
+    }
+    LaunchedEffect(state.bookmarkNotice?.seq) {
+        val notice = state.bookmarkNotice ?: return@LaunchedEffect
+        if (System.currentTimeMillis() - notice.atMs > NOTICE_FRESH_MS) return@LaunchedEffect
+        hostState.showSnackbar(message = notice.text, duration = SnackbarDuration.Short)
     }
 }
 
@@ -417,10 +464,12 @@ private fun SecondaryChips(
     sleepTimerMinutes: Int,
     sleepTimerRemainingSec: Long?,
     showChapters: Boolean,
+    undoAvailable: Boolean,
     onSpeedClick: () -> Unit,
     onSleepClick: () -> Unit,
     onBookmarkClick: () -> Unit,
     onChaptersClick: () -> Unit,
+    onUndoClick: () -> Unit,
 ) {
     val sleepLabel = formatSleepLabel(
         selectedMinutes = sleepTimerMinutes,
@@ -483,5 +532,22 @@ private fun SecondaryChips(
                 )
             },
         )
+        // Persistent undo entry point; the post-seek snackbar is transient
+        // and easy to miss mid-listen.
+        if (undoAvailable) {
+            AssistChip(
+                onClick = onUndoClick,
+                label = { Text(text = "Undo") },
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.Undo,
+                        contentDescription = "Undo last seek",
+                        modifier = Modifier.size(AssistChipDefaults.IconSize),
+                    )
+                },
+            )
+        }
     }
 }
+
+private const val NOTICE_FRESH_MS = 5_000L

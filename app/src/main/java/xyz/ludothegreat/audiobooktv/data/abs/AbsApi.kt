@@ -1,7 +1,9 @@
 package xyz.ludothegreat.audiobooktv.data.abs
 
 import retrofit2.http.Body
+import retrofit2.http.DELETE
 import retrofit2.http.GET
+import retrofit2.http.PATCH
 import retrofit2.http.POST
 import retrofit2.http.Path
 import retrofit2.http.Query
@@ -65,4 +67,20 @@ interface AbsApi {
         @Path("itemId") itemId: String,
         @Body body: xyz.ludothegreat.audiobooktv.data.abs.dto.CreateBookmarkRequest,
     ): xyz.ludothegreat.audiobooktv.data.abs.dto.AbsBookmark
+
+    // ABS addresses a bookmark by its time, not by an id: PATCH looks the
+    // bookmark up via body.time and updates the title (404 when no bookmark
+    // exists at that time); DELETE takes the time as the path segment.
+    // Verified against a live 2.35.1 server.
+    @PATCH("api/me/item/{itemId}/bookmark")
+    suspend fun updateBookmark(
+        @Path("itemId") itemId: String,
+        @Body body: xyz.ludothegreat.audiobooktv.data.abs.dto.CreateBookmarkRequest,
+    ): xyz.ludothegreat.audiobooktv.data.abs.dto.AbsBookmark
+
+    @DELETE("api/me/item/{itemId}/bookmark/{time}")
+    suspend fun deleteBookmark(
+        @Path("itemId") itemId: String,
+        @Path("time") timeSec: Long,
+    )
 }
