@@ -43,9 +43,13 @@ import xyz.ludothegreat.audiobooktv.playback.formatTimestampHms
 /**
  * Jump-to-chapter picker. Same control idiom as SpeedPanel and
  * SleepTimerPanel: each chapter is a focusable Surface row, the chapter the
- * player is currently inside is filled with primary (green) and every row
- * gets the secondary (orange) outline on focus. The list opens scrolled to
- * the current chapter so long books don't start 80 rows away from "here".
+ * player is currently inside is filled with primary (green) AND carries a
+ * play-marker glyph before its number, and every row gets the secondary
+ * (orange) outline on focus. The glyph is what makes "currently playing"
+ * readable independently of the fill, because a viewer scanning the list
+ * cannot otherwise tell the persistent green fill from a focus highlight.
+ * The list opens scrolled to the current chapter so long books don't start
+ * 80 rows away from "here".
  */
 @Composable
 fun ChapterPanel(
@@ -160,9 +164,9 @@ private fun ChapterRow(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                text = "${index + 1}",
+                text = if (isCurrent) "\u25B6 ${index + 1}" else "${index + 1}",
                 fontSize = 16.sp,
-                modifier = Modifier.width(40.dp),
+                modifier = Modifier.width(52.dp),
             )
             Text(
                 text = chapterRowTitle(chapter, index),

@@ -100,11 +100,13 @@ private fun ChapterRow(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
+        // Same current-chapter marker as the TV panel: the glyph, not the
+        // container tint, is the signal that survives a quick scan.
         Text(
-            text = "${index + 1}",
+            text = if (isCurrent) "\u25B6 ${index + 1}" else "${index + 1}",
             color = if (isCurrent) contentColor else colors.primary,
             style = MaterialTheme.typography.labelLarge,
-            modifier = Modifier.width(28.dp),
+            modifier = Modifier.width(40.dp),
         )
         Text(
             text = chapter.title?.takeIf { it.isNotBlank() } ?: "Chapter ${index + 1}",
