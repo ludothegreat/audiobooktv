@@ -29,14 +29,19 @@ import xyz.ludothegreat.audiobooktv.data.abs.dto.AbsAudioTrack
 import xyz.ludothegreat.audiobooktv.data.abs.dto.AbsChapter
 import xyz.ludothegreat.audiobooktv.data.log.DiagnosticLog
 import xyz.ludothegreat.audiobooktv.data.settings.AppSettings
+import xyz.ludothegreat.audiobooktv.data.settings.PositionCacheStore
 import xyz.ludothegreat.audiobooktv.data.settings.SpeedStore
 import xyz.ludothegreat.audiobooktv.domain.Bookmark
 import xyz.ludothegreat.audiobooktv.playback.BookmarkList
 import xyz.ludothegreat.audiobooktv.playback.BookmarksRepository
 import xyz.ludothegreat.audiobooktv.playback.ChapterMath
+import xyz.ludothegreat.audiobooktv.playback.PauseFlushGate
+import xyz.ludothegreat.audiobooktv.playback.PlaybackPrep
 import xyz.ludothegreat.audiobooktv.playback.PlaybackRepository
 import xyz.ludothegreat.audiobooktv.playback.PlayerService
 import xyz.ludothegreat.audiobooktv.playback.PositionMath
+import xyz.ludothegreat.audiobooktv.playback.PositionReconciler
+import xyz.ludothegreat.audiobooktv.playback.ResumeDecision
 import xyz.ludothegreat.audiobooktv.playback.RetryPolicy
 import xyz.ludothegreat.audiobooktv.playback.ScrubTargets
 import xyz.ludothegreat.audiobooktv.playback.SeekCause
@@ -128,6 +133,7 @@ class PlayerViewModel @Inject constructor(
     private val bookmarksRepository: BookmarksRepository,
     private val speedStore: SpeedStore,
     private val appSettings: AppSettings,
+    private val positionCacheStore: PositionCacheStore,
     private val diagnosticLog: DiagnosticLog,
 ) : ViewModel() {
 
@@ -147,6 +153,7 @@ class PlayerViewModel @Inject constructor(
     private var lastSyncWallClockMs: Long = 0
     private val seekHistory = SeekHistory()
     private val sleepEocGate = SleepEocGate()
+    private val pauseFlushGate = PauseFlushGate()
     private var noticeSeq: Long = 0
 
     private val sleepCountdown = SleepCountdown(
@@ -272,8 +279,14 @@ class PlayerViewModel @Inject constructor(
                             stopSyncTimer()
                             // Flush one last sync on pause so server sees the
                             // current position even if the user stops in
-                            // mid-interval.
-                            syncOnce()
+                            // mid-interval. The gate suppresses exactly the
+                            // stop that a book switch produces: that callback
+                            // arrives after load() has installed the NEW
+                            // session and track table, so flushing here would
+                            // write the old book's playhead into the new
+                            // book's progress (cross-book bleed, case C1).
+                            // load() flushes the old session itself first.
+                            if (pauseFlushGate.shouldFlushOnPause()) syncOnce()
                             // Start polling so another client's progress
                             // shows up here without needing the user to
                             // background the app.
@@ -374,13 +387,7 @@ class PlayerViewModel @Inject constructor(
             }
             return
         }
-        // Close any previous server session before opening a new one for a
-        // different book so ABS doesn't hold a dangling session per device.
-        sessionId?.let { previous ->
-            sessionId = null
-            stopSyncTimer()
-            viewModelScope.launch { playbackRepository.closeSession(previous) }
-        }
+        flushAndClosePreviousSession()
         // New playback resets the sleep timer to its selected preset value.
         // If the timer was at 5 min remaining of a 30-min preset and the
         // user opens a different book, the next playback gets a fresh 30 min.
@@ -410,41 +417,100 @@ class PlayerViewModel @Inject constructor(
         }
         viewModelScope.launch {
             runCatching { playbackRepository.openPlayback(itemId) }
-                .onSuccess { prep ->
-                    sessionId = prep.session.id
-                    chapters = prep.session.chapters
-                    tracks = prep.session.audioTracks
-                    val ctl = controller
-                    if (ctl == null) {
-                        _state.update { it.copy(loading = false, error = "Player not ready.") }
-                        return@onSuccess
-                    }
-                    ctl.setMediaItems(prep.mediaItems, false)
-                    ctl.prepare()
-                    seekToAbsoluteMs(prep.resumePositionMs)
-                    val savedSpeed = speedStore.get(itemId) ?: 1.0f
-                    ctl.setPlaybackSpeed(savedSpeed)
-                    _state.update {
-                        it.copy(
-                            loading = false,
-                            title = prep.session.displayTitle ?: "",
-                            author = prep.session.displayAuthor ?: "",
-                            durationSec = prep.session.duration.toLong(),
-                            positionSec = prep.resumePositionMs / 1000,
-                            chapters = prep.session.chapters,
-                            chapterTitle = currentChapterTitle(prep.resumePositionMs / 1000.0),
-                            isPlaying = ctl.isPlaying,
-                            speed = savedSpeed,
-                        )
-                    }
-                    // Land paused -> start polling so external client changes
-                    // converge without requiring the user to press Play.
-                    if (!ctl.isPlaying) startPausedPoll()
-                }
+                .onSuccess { prep -> onPlaybackOpened(itemId, prep) }
                 .onFailure { t ->
                     _state.update { it.copy(loading = false, error = t.message ?: "Failed to open playback.") }
                 }
         }
+    }
+
+    /**
+     * Close any previous server session before opening a new one for a
+     * different book so ABS doesn't hold a dangling session per device.
+     * If the old book is still PLAYING, flush its position into the OLD
+     * session here, with the OLD track table, and arm the gate: the
+     * isPlaying=false that setMediaItems will trigger arrives only after
+     * the new session is installed, and a pause flush at that moment
+     * attributes the old playhead to the new book (case C1, observed
+     * live: a fresh book jumped to the previous book's 12435s).
+     */
+    private fun flushAndClosePreviousSession() {
+        val previous = sessionId ?: return
+        val ctlNow = controller
+        val previousItemId = _state.value.itemId
+        val previousDuration = _state.value.durationSec.toDouble()
+        val flushSec = if (ctlNow?.isPlaying == true) absolutePositionSec(ctlNow).toDouble() else null
+        if (flushSec != null) pauseFlushGate.armForTransition()
+        sessionId = null
+        stopSyncTimer()
+        val now = System.currentTimeMillis()
+        val deltaSec = if (lastSyncWallClockMs > 0) ((now - lastSyncWallClockMs) / 1000.0) else 0.0
+        lastSyncWallClockMs = now
+        viewModelScope.launch {
+            if (flushSec != null && previousItemId != null) {
+                syncTracked(
+                    sessionId = previous,
+                    itemId = previousItemId,
+                    positionSec = flushSec,
+                    listenedSec = deltaSec.coerceAtLeast(0.0),
+                    durationSec = previousDuration,
+                )
+            }
+            playbackRepository.closeSession(previous)
+        }
+    }
+
+    private suspend fun onPlaybackOpened(itemId: String, prep: PlaybackPrep) {
+        sessionId = prep.session.id
+        chapters = prep.session.chapters
+        tracks = prep.session.audioTracks
+        val ctl = controller
+        if (ctl == null) {
+            _state.update { it.copy(loading = false, error = "Player not ready.") }
+            return
+        }
+        // Resume position: server-truth, except when a DIRTY local record
+        // outran the server while syncs were failing (crash during a network
+        // drop, case E). Then the local value is adopted AND pushed so the
+        // server converges forward instead of this device seeking back over
+        // real progress.
+        val serverResumeSec = prep.resumePositionMs / 1000.0
+        val bookDurationSec = prep.session.duration
+        val decision = PositionReconciler.reconcile(
+            itemId = itemId,
+            serverSec = serverResumeSec,
+            durationSec = bookDurationSec,
+            local = positionCacheStore.read(),
+        )
+        val resumeSec = decision.positionSec
+        ctl.setMediaItems(prep.mediaItems, false)
+        ctl.prepare()
+        seekToAbsoluteMs((resumeSec * 1000).toLong())
+        val savedSpeed = speedStore.get(itemId) ?: 1.0f
+        ctl.setPlaybackSpeed(savedSpeed)
+        _state.update {
+            it.copy(
+                loading = false,
+                title = prep.session.displayTitle ?: "",
+                author = prep.session.displayAuthor ?: "",
+                durationSec = bookDurationSec.toLong(),
+                positionSec = resumeSec.toLong(),
+                chapters = prep.session.chapters,
+                chapterTitle = currentChapterTitle(resumeSec),
+                isPlaying = ctl.isPlaying,
+                speed = savedSpeed,
+            )
+        }
+        if (decision is ResumeDecision.UseLocalAndPush) {
+            diagnosticLog.i(
+                "Player",
+                "Recovered unsynced local position ${resumeSec}s over server ${serverResumeSec}s for $itemId",
+            )
+            pushPositionToServer(resumeSec, bookDurationSec)
+        }
+        // Land paused -> start polling so external client changes
+        // converge without requiring the user to press Play.
+        if (!ctl.isPlaying) startPausedPoll()
     }
 
     fun togglePlayPause() {
@@ -460,18 +526,21 @@ class PlayerViewModel @Inject constructor(
         }
         // Pre-play check: pull the latest server position. If another client
         // (ABS web on a phone, another TV) advanced past our local position,
-        // start from there instead of replaying.
+        // start from there instead of replaying. Reconciled first: a dirty
+        // local record ahead of the server means the server value is stale,
+        // not authoritative, and adopting it would replay listened audio.
         viewModelScope.launch {
             val serverSec = playbackRepository.fetchSavedPositionSec(id)
             val ctlNow = controller ?: return@launch
             if (serverSec != null) {
+                val adoptSec = adoptServerPosition(id, serverSec)
                 val localSec = absolutePositionSec(ctlNow).toDouble()
-                if (kotlin.math.abs(serverSec - localSec) > POSITION_DRIFT_TOLERANCE_SEC) {
-                    seekToAbsoluteMs((serverSec * 1000).toLong())
+                if (kotlin.math.abs(adoptSec - localSec) > POSITION_DRIFT_TOLERANCE_SEC) {
+                    seekToAbsoluteMs((adoptSec * 1000).toLong())
                     _state.update {
                         it.copy(
-                            positionSec = serverSec.toLong(),
-                            chapterTitle = currentChapterTitle(serverSec),
+                            positionSec = adoptSec.toLong(),
+                            chapterTitle = currentChapterTitle(adoptSec),
                         )
                     }
                 }
@@ -728,18 +797,78 @@ class PlayerViewModel @Inject constructor(
      * User-initiated seek: tell the server this is our new position so the
      * pre-play refresh in togglePlayPause doesn't snap us back to a stale
      * "where you last paused" value when the user hits Play next.
+     *
+     * durationSec is overridable for the one caller (load's reconcile push)
+     * that runs before the state update lands the new book's duration.
      */
-    private fun pushPositionToServer(timeSec: Double) {
+    private fun pushPositionToServer(timeSec: Double, durationSec: Double = _state.value.durationSec.toDouble()) {
         val sid = sessionId ?: return
-        val dur = _state.value.durationSec.toDouble()
+        val id = _state.value.itemId ?: return
         viewModelScope.launch {
-            playbackRepository.syncProgress(
+            syncTracked(
                 sessionId = sid,
-                currentTimeSec = timeSec,
-                timeListenedSec = 0.0,
-                durationSec = dur,
+                itemId = id,
+                positionSec = timeSec,
+                listenedSec = 0.0,
+                durationSec = durationSec,
             )
         }
+    }
+
+    /**
+     * The single tracked write path to the server's progress record: dirty
+     * local record BEFORE the network call, clean only after the server
+     * confirmed. Every progress write (10s tick, pause flush, seek push,
+     * book-switch flush, reconcile push) goes through here, so a crash or a
+     * dead network at any instant leaves a dirty record for the reconciler
+     * to replay. Losing the failure silently was case E: 27s of listening
+     * gone to a force-stop during a network drop.
+     */
+    private suspend fun syncTracked(
+        sessionId: String,
+        itemId: String,
+        positionSec: Double,
+        listenedSec: Double,
+        durationSec: Double,
+    ): Boolean {
+        positionCacheStore.writeDirty(itemId, positionSec)
+        val confirmed = playbackRepository.syncProgress(
+            sessionId = sessionId,
+            currentTimeSec = positionSec,
+            timeListenedSec = listenedSec,
+            durationSec = durationSec,
+        )
+        if (confirmed) {
+            positionCacheStore.markClean(itemId, positionSec)
+        } else {
+            diagnosticLog.w("Player", "Progress sync unconfirmed; dirty local record kept at ${positionSec}s for $itemId")
+        }
+        return confirmed
+    }
+
+    /**
+     * Filter every externally fetched position through the reconciler before
+     * adopting it. Returns the position to adopt; when a dirty local record
+     * outran the server, that record wins and is pushed so the server
+     * converges forward. Without this, the paused poll and the pre-play
+     * refresh would seek BACKWARD onto a stale server value the moment the
+     * network returns after a drop.
+     */
+    private suspend fun adoptServerPosition(itemId: String, serverSec: Double): Double {
+        val decision = PositionReconciler.reconcile(
+            itemId = itemId,
+            serverSec = serverSec,
+            durationSec = _state.value.durationSec.toDouble(),
+            local = positionCacheStore.read(),
+        )
+        if (decision is ResumeDecision.UseLocalAndPush) {
+            diagnosticLog.i(
+                "Player",
+                "Pushing unsynced local position ${decision.positionSec}s over server ${serverSec}s for $itemId",
+            )
+            pushPositionToServer(decision.positionSec)
+        }
+        return decision.positionSec
     }
 
     private fun absolutePositionSec(ctl: MediaController): Long = PositionMath.absolutePositionSec(
@@ -764,13 +893,14 @@ class PlayerViewModel @Inject constructor(
         if (ctl.isPlaying) return
         viewModelScope.launch {
             val serverSec = playbackRepository.fetchSavedPositionSec(itemId) ?: return@launch
+            val adoptSec = adoptServerPosition(itemId, serverSec)
             val localSec = absolutePositionSec(ctl).toDouble()
-            if (kotlin.math.abs(serverSec - localSec) > POSITION_DRIFT_TOLERANCE_SEC) {
-                seekToAbsoluteMs((serverSec * 1000).toLong())
+            if (kotlin.math.abs(adoptSec - localSec) > POSITION_DRIFT_TOLERANCE_SEC) {
+                seekToAbsoluteMs((adoptSec * 1000).toLong())
                 _state.update {
                     it.copy(
-                        positionSec = serverSec.toLong(),
-                        chapterTitle = currentChapterTitle(serverSec),
+                        positionSec = adoptSec.toLong(),
+                        chapterTitle = currentChapterTitle(adoptSec),
                     )
                 }
             }
@@ -837,16 +967,18 @@ class PlayerViewModel @Inject constructor(
     private fun syncOnce() {
         val sid = sessionId ?: return
         val ctl = controller ?: return
+        val id = _state.value.itemId ?: return
         val currentSec = absolutePositionSec(ctl).toDouble()
         val now = System.currentTimeMillis()
         val deltaSec = if (lastSyncWallClockMs > 0) ((now - lastSyncWallClockMs) / 1000.0) else 0.0
         lastSyncWallClockMs = now
         val duration = _state.value.durationSec.toDouble()
         viewModelScope.launch {
-            playbackRepository.syncProgress(
+            syncTracked(
                 sessionId = sid,
-                currentTimeSec = currentSec,
-                timeListenedSec = deltaSec.coerceAtLeast(0.0),
+                itemId = id,
+                positionSec = currentSec,
+                listenedSec = deltaSec.coerceAtLeast(0.0),
                 durationSec = duration,
             )
         }
