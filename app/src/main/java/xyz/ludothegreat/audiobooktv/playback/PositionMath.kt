@@ -10,7 +10,7 @@ import xyz.ludothegreat.audiobooktv.data.abs.dto.AbsChapter
  *
  * ABS exposes audiobooks as a sequence of audio tracks each with a
  * `startOffset` in seconds from the book start. ExoPlayer's position is
- * `(currentMediaItemIndex, currentPositionMs)` — relative to the current
+ * `(currentMediaItemIndex, currentPositionMs)` - relative to the current
  * track. The "absolute position in the book" is what every user-facing
  * surface (UI, server progress sync, bookmarks) wants. These functions
  * convert between the two.

@@ -242,7 +242,7 @@ private fun ControlButton(
         modifier = Modifier.height(40.dp),
     ) {
         // softWrap=false + maxLines=1 forbid the half-word wrap we saw on
-        // the Onn box once Play swapped to Pause. If a label is too long
+        // the TV device once Play swapped to Pause. If a label is too long
         // for the row, it ellipsizes -- visible enough to flag the layout
         // problem instead of silently splitting "Sleep" into "Sle / ep".
         Text(

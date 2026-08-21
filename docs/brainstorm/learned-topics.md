@@ -1,6 +1,6 @@
 # Learned Topics
 
-Topics that emerged during this brainstorm that aren't in the default template — fold into future brainstorms when conditions match.
+Topics that emerged during this brainstorm that aren't in the default template - fold into future brainstorms when conditions match.
 
 ## Architecture
 - **Existing-tool-versus-new-app check**: Before designing a new client, ask whether an existing project in the user's workspace already solves the same problem and can be extended instead. Relevant when: the brainstorm topic overlaps an in-progress project in MEMORY.md.

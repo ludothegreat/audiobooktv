@@ -224,7 +224,7 @@ class PlayerViewModel @Inject constructor(
 
     fun load(itemId: String, coverUrl: String?) {
         if (_state.value.itemId == itemId && (controller?.mediaItemCount ?: 0) > 0) {
-            // Same book already loaded — don't rebuild the playlist, but do
+            // Same book already loaded - don't rebuild the playlist, but do
             // pull the latest position from the server in case another client
             // advanced it while we were elsewhere.
             refreshFromServer(itemId)
@@ -465,7 +465,7 @@ class PlayerViewModel @Inject constructor(
 
     private fun refreshFromServer(itemId: String) {
         // Only pull a remote position if the local player isn't actively
-        // playing — yanking the head backward mid-listen is worse than a
+        // playing - yanking the head backward mid-listen is worse than a
         // small drift, and any active play is already syncing to ABS itself.
         val ctl = controller ?: return
         if (ctl.isPlaying) return

@@ -11,7 +11,7 @@
     Three-bar mark  #b8bb26
     Wordmark        #ebdbb2
 
-    The Onn TV launcher caches this image across reinstalls; a full TV
+    Some Android TV launchers cache this image across reinstalls; a full TV
     reboot is required to see edits take effect on-device.
 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"

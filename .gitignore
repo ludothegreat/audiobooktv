@@ -9,6 +9,7 @@ captures/
 *.apk
 *.aab
 *.keystore
+!signing/debug.keystore
 .kotlin/
 
 # Personal/internal project notes, kept locally, never published

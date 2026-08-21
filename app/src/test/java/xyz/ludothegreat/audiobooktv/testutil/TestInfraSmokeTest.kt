@@ -10,7 +10,7 @@ import org.junit.Rule
 import org.junit.Test
 
 /**
- * Smoke test — proves JUnit + coroutines-test + Turbine + MockWebServer
+ * Smoke test - proves JUnit + coroutines-test + Turbine + MockWebServer
  * all run inside `./gradlew test`. If this regresses, the whole unit-test
  * surface is broken; everything else here depends on these four working.
  */

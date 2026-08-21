@@ -19,14 +19,31 @@ android {
         versionName = "1.2.1"
     }
 
+    signingConfigs {
+        // Sideload-only project (decision #3): a debug-grade key with the
+        // standard public passwords, COMMITTED TO THE REPO on purpose. Before
+        // this existed, every CI runner minted its own throwaway keystore, so
+        // no two published releases were signed by the same key and no user
+        // could ever install an update without uninstalling first. One shared
+        // checked-in key makes every build - CI, contributor, local - upgrade
+        // over every other. There is nothing secret here by design.
+        create("shared") {
+            storeFile = rootProject.file("signing/debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            // Sideload-only project: use the debug signing key so anyone with
-            // gradle can build a working installable APK without secrets.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName("shared")
+        }
+        debug {
+            signingConfig = signingConfigs.getByName("shared")
         }
     }
 

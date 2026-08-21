@@ -21,7 +21,7 @@ import java.util.concurrent.TimeUnit
 
 /**
  * Locks PlaybackRepository's HTTP-shape contract with ABS. The
- * position-is-server-truth invariant (HANDOFF.md) lives one layer up in
+ * position-is-server-truth invariant lives one layer up in
  * PlayerViewModel, but it depends on these three methods producing the
  * right bodies and returning the right values:
  *

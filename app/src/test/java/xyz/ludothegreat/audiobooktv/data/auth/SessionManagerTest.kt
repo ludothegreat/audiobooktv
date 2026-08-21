@@ -15,7 +15,7 @@ import java.util.concurrent.TimeUnit
 
 /**
  * Locks the SessionManager.connect happy and unhappy paths over plain HTTP,
- * which is the path the app actually uses on the test Onn box. The HTTPS pin
+ * which is the path the app actually uses on the test TV device. The HTTPS pin
  * flow's trust-manager wiring is covered by [PinnedCertTrustManagerTest];
  * here we focus on the request order and the version gate which are the two
  * places where a regression silently drops the password on the wire ahead of

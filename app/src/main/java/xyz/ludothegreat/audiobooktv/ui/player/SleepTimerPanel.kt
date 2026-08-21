@@ -37,7 +37,7 @@ import androidx.tv.material3.Text
  * Sleep-timer preset picker. Same control idiom as SpeedPanel: each
  * preset is a focusable Surface row, the currently-selected preset is
  * filled with primary (green) and outlined with secondary (orange) when
- * focused. No on-screen keyboard, no numeric entry — D-pad picks a
+ * focused. No on-screen keyboard, no numeric entry - D-pad picks a
  * preset from a fixed list (decision: ship with the locked grain).
  */
 @Composable

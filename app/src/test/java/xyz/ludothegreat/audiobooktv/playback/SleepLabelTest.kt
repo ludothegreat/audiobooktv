@@ -5,7 +5,7 @@ import org.junit.Test
 
 /**
  * Locks the compact sleep-button label rule. The control row had a wrap
- * regression on the Onn box once the Play button swapped to Pause -- the
+ * regression on the TV device once the Play button swapped to Pause -- the
  * 6th button got squeezed and the word "Sleep" word-wrapped to "Sle /
  * ep". Labels here are deliberately short so 6 buttons + Pause always
  * fit in the row.

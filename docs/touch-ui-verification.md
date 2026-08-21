@@ -20,7 +20,7 @@ JAVA_HOME=/usr/lib/jvm/java-21-openjdk ./gradlew assembleRelease
 ls -la app/build/outputs/apk/release/app-release.apk
 ```
 
-Expect ~5.5 MB. Same APK runs on TV, phone, and tablet — the launcher picks
+Expect ~5.5 MB. Same APK runs on TV, phone, and tablet - the launcher picks
 the right UI based on `FEATURE_LEANBACK`.
 
 ## Install on phone (USB)
@@ -97,7 +97,7 @@ the phone's bottom `NavigationBar`.
     chip row shows Gruvbox + NeonLightning; tap NeonLightning; the whole UI
     re-themes to the magenta/black palette immediately. Toggle Stop-on-app-
     close on then off. Refresh-library button shows a transient "Library
-    refresh requested." line. Log out works (returns to setup form) — then
+    refresh requested." line. Log out works (returns to setup form) - then
     log back in to continue.
 
 ## Cross-device resume (the headline test)
@@ -108,7 +108,7 @@ the phone's bottom `NavigationBar`.
    press Pause. Note the timestamp shown (e.g. `0:01:23`).
 2. On the **phone**, open the same book from Library (or it should be the
    pre-loaded active book on app start).
-3. The position bar must show the same `0:01:23` (±3 seconds — that's the
+3. The position bar must show the same `0:01:23` (±3 seconds - that's the
    `POSITION_DRIFT_TOLERANCE_SEC` in PlayerViewModel). Press Play. Audio
    resumes from that point.
 
@@ -143,7 +143,7 @@ sudo conntrack -D -s <phone-ip> -p tcp --orig-port-dst 13378
 sudo iptables -D DOCKER-USER -s <phone-ip> -p tcp -m conntrack --ctorigdstport 13378 -j DROP
 ```
 
-Re-open the Library tab on the phone — the cached grid renders with an
+Re-open the Library tab on the phone - the cached grid renders with an
 "Offline -- showing cached library" badge at the top.
 
 ## What this verifies

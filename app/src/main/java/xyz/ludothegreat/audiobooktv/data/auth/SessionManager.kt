@@ -39,7 +39,7 @@ class SessionManager @Inject constructor(
         return runCatching {
             // Phase 1: capture the cert fingerprint over a request that carries
             // NO credentials. Even if a MITM is in the path, only /ping leaks.
-            // Only meaningful for https:// — http:// has no TLS handshake, so the
+            // Only meaningful for https:// - http:// has no TLS handshake, so the
             // trust toggle is silently ignored when scheme is plaintext.
             val pinnedFingerprint: String? = if (shouldPin) {
                 var captured: String? = null
@@ -110,7 +110,7 @@ class SessionManager @Inject constructor(
     companion object {
         // Mirror VersionGate.MIN_SERVER_VERSION at the SessionManager level
         // for callers that already reach for SessionManager.MIN_SERVER_VERSION
-        // (HANDOFF.md / README cross-reference this name).
+        // (the README cross-references this name).
         const val MIN_SERVER_VERSION: String = VersionGate.MIN_SERVER_VERSION
     }
 }

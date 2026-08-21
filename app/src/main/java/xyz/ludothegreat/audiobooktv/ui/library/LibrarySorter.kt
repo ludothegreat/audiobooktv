@@ -9,7 +9,7 @@ import xyz.ludothegreat.audiobooktv.domain.Book
  * 3. Finished books last (kept in the list because re-listen is common),
  *    interleaved with never-played by the same author/title order.
  *
- * The sort runs on every refresh — keep it allocation-light and stable.
+ * The sort runs on every refresh - keep it allocation-light and stable.
  */
 internal object LibrarySorter {
     fun sortForGrid(books: List<Book>): List<Book> {
