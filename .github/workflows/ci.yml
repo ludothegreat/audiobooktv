@@ -101,3 +101,4 @@ jobs:
           files: audiobooktv-${{ env.TAG }}.apk
           generate_release_notes: true
           fail_on_unmatched_files: true
+          body_path: .github/release-preamble.md
