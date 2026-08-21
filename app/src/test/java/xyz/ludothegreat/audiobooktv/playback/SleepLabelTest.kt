@@ -44,4 +44,47 @@ class SleepLabelTest {
     fun `zero remaining drops back to the armed minutes label`() {
         assertEquals("5m", formatSleepLabel(selectedMinutes = 5, remainingSec = 0))
     }
+
+    @Test
+    fun `end of chapter alone shows EOC in every idle state`() {
+        assertEquals("EOC", formatSleepLabel(selectedMinutes = 0, remainingSec = null, endOfChapter = true))
+        assertEquals("EOC", formatSleepLabel(selectedMinutes = 0, remainingSec = 0, endOfChapter = true))
+    }
+
+    @Test
+    fun `combined mode armed shows the minutes with a plus suffix`() {
+        assertEquals("5m+", formatSleepLabel(selectedMinutes = 5, remainingSec = null, endOfChapter = true))
+        assertEquals("30m+", formatSleepLabel(selectedMinutes = 30, remainingSec = null, endOfChapter = true))
+    }
+
+    @Test
+    fun `combined mode ticking keeps the plus suffix`() {
+        assertEquals("4:59+", formatSleepLabel(selectedMinutes = 5, remainingSec = 299, endOfChapter = true))
+        assertEquals("0:01+", formatSleepLabel(selectedMinutes = 5, remainingSec = 1, endOfChapter = true))
+    }
+
+    @Test
+    fun `combined mode after the countdown fires shows EOC while the chapter runs out`() {
+        assertEquals(
+            "EOC",
+            formatSleepLabel(selectedMinutes = 5, remainingSec = null, endOfChapter = true, eocWaiting = true),
+        )
+    }
+
+    @Test
+    fun `eoc waiting outranks a stale ticking value`() {
+        // Belt and braces: if state ever carries both, the chapter phase is
+        // the truth the user needs.
+        assertEquals(
+            "EOC",
+            formatSleepLabel(selectedMinutes = 5, remainingSec = 90, endOfChapter = true, eocWaiting = true),
+        )
+    }
+
+    @Test
+    fun `plain labels are untouched when eoc flags are off`() {
+        assertEquals("4:59", formatSleepLabel(selectedMinutes = 5, remainingSec = 299))
+        assertEquals("5m", formatSleepLabel(selectedMinutes = 5, remainingSec = null))
+        assertEquals("Sleep", formatSleepLabel(selectedMinutes = 0, remainingSec = null))
+    }
 }
