@@ -126,6 +126,16 @@ fun PlayerScreen(
                         onSleepTimer = viewModel::openSleepTimerPanel,
                         colors = colors,
                     )
+                    state.undoSeekTargetSec?.let { undoTarget ->
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Row {
+                            ControlButton(
+                                label = "Undo seek to ${formatTime(undoTarget)}",
+                                onClick = viewModel::undoSeek,
+                                colors = colors,
+                            )
+                        }
+                    }
                     state.error?.let { msg ->
                         Spacer(modifier = Modifier.height(12.dp))
                         Text(text = msg, color = colors.error, fontSize = 14.sp)
@@ -147,8 +157,11 @@ fun PlayerScreen(
                 positionSec = state.positionSec,
                 bookmarks = state.bookmarks,
                 loading = state.bookmarksLoading,
+                errorText = state.bookmarkNotice?.takeIf { it.isError }?.text,
                 onAddHere = viewModel::addBookmarkHere,
                 onJump = viewModel::jumpToBookmark,
+                onRename = viewModel::renameBookmark,
+                onDelete = viewModel::deleteBookmark,
                 onDismiss = viewModel::closeBookmarkPanel,
             )
         }
