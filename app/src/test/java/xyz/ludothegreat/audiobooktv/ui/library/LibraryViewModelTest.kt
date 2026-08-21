@@ -96,6 +96,40 @@ class LibraryViewModelTest {
         assertEquals(2, state.books.size)
     }
 
+    @Test
+    fun `query and segment narrow visibleBooks but never touch books`() = runTest {
+        val started = book("started").copy(title = "Project Hail Mary", progressFraction = 0.4)
+        val fresh = book("fresh").copy(title = "Children of Time")
+        val repo = FakeLibrarySource(books = listOf(started, fresh))
+        val vm = LibraryViewModel(repo, FakeLibraryCacheStorage(emptyList()), LibraryRefreshBus())
+        advanceUntilIdle()
+
+        vm.onSegmentSelect(StatusSegment.STARTED)
+        assertEquals(listOf("started"), vm.state.value.visibleBooks.map { it.id })
+
+        vm.onSegmentSelect(StatusSegment.ALL)
+        vm.onQueryChange("children")
+        assertEquals(listOf("fresh"), vm.state.value.visibleBooks.map { it.id })
+
+        // The full list stays intact underneath the filter.
+        assertEquals(2, vm.state.value.books.size)
+    }
+
+    @Test
+    fun `refresh keeps the active query and segment`() = runTest {
+        val repo = FakeLibrarySource(books = listOf(book("a")))
+        val vm = LibraryViewModel(repo, FakeLibraryCacheStorage(emptyList()), LibraryRefreshBus())
+        advanceUntilIdle()
+
+        vm.onQueryChange("keep me")
+        vm.onSegmentSelect(StatusSegment.FINISHED)
+        vm.refresh()
+        advanceUntilIdle()
+
+        assertEquals("keep me", vm.state.value.query)
+        assertEquals(StatusSegment.FINISHED, vm.state.value.segment)
+    }
+
     private fun book(id: String) = Book(
         id = id,
         title = "Title $id",
