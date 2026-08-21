@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -248,7 +249,7 @@ private fun BookTile(book: Book, onClick: () -> Unit, modifier: Modifier = Modif
     // the orange focus ring to 45% as well.
     val contentAlpha = if (status == StatusSegment.FINISHED) 0.45f else 1.0f
     val seriesLine = SeriesLabel.seriesLine(book.series)
-    val metaLine = CardMeta.metaLine(book.author, book.durationSec)
+    val metaParts = CardMeta.metaParts(book.author, book.durationSec)
 
     Surface(
         onClick = onClick,
@@ -303,7 +304,7 @@ private fun BookTile(book: Book, onClick: () -> Unit, modifier: Modifier = Modif
             TileCaption(
                 title = SeriesLabel.numberedTitle(book.title, book.series),
                 seriesLine = seriesLine,
-                metaLine = metaLine,
+                meta = metaParts,
                 contentAlpha = contentAlpha,
                 colors = colors,
             )
@@ -315,7 +316,7 @@ private fun BookTile(book: Book, onClick: () -> Unit, modifier: Modifier = Modif
 private fun TileCaption(
     title: String,
     seriesLine: String?,
-    metaLine: String?,
+    meta: CardMeta.MetaParts?,
     contentAlpha: Float,
     colors: androidx.tv.material3.ColorScheme,
 ) {
@@ -332,7 +333,7 @@ private fun TileCaption(
                 start = 8.dp,
                 end = 8.dp,
                 top = 8.dp,
-                bottom = if (seriesLine == null && metaLine == null) 8.dp else 2.dp,
+                bottom = if (seriesLine == null && meta == null) 8.dp else 2.dp,
             ),
     )
     if (seriesLine != null) {
@@ -345,20 +346,42 @@ private fun TileCaption(
             modifier = Modifier
                 .fillMaxWidth()
                 .alpha(contentAlpha)
-                .padding(start = 8.dp, end = 8.dp, bottom = if (metaLine == null) 8.dp else 2.dp),
+                .padding(start = 8.dp, end = 8.dp, bottom = if (meta == null) 8.dp else 2.dp),
         )
     }
-    if (metaLine != null) {
-        Text(
-            text = metaLine,
-            color = colors.onSurfaceVariant,
-            fontSize = 11.sp,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
+    if (meta != null) {
+        // Two rigid-vs-flexible slots, never one joined string: the
+        // unweighted duration Text measures first at intrinsic width, the
+        // weighted author slot takes only what is left and ellipsizes
+        // there. A long author can no longer eat the tail of "16h 27m",
+        // focused or not. When the author is missing the empty weighted
+        // slot keeps the duration end-aligned, so durations form a clean
+        // scannable column down the grid.
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
                 .fillMaxWidth()
                 .alpha(contentAlpha)
                 .padding(start = 8.dp, end = 8.dp, bottom = 8.dp),
-        )
+        ) {
+            Text(
+                text = meta.author ?: "",
+                color = colors.onSurfaceVariant,
+                fontSize = 11.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+            if (meta.duration != null) {
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = meta.duration,
+                    color = colors.onSurfaceVariant,
+                    fontSize = 11.sp,
+                    maxLines = 1,
+                    softWrap = false,
+                )
+            }
+        }
     }
 }
