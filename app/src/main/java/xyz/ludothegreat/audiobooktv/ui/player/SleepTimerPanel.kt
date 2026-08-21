@@ -56,6 +56,7 @@ fun SleepTimerPanel(
     showEndOfChapter: Boolean,
     onSelect: (Int) -> Unit,
     onToggleEndOfChapter: (Boolean) -> Unit,
+    onPickEndOfChapter: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     val colors = MaterialTheme.colorScheme
@@ -100,7 +101,8 @@ fun SleepTimerPanel(
                     .let { if (it == -1) 0 else it }
 
                 SLEEP_TIMER_PRESETS_MINUTES.forEachIndexed { index, minutes ->
-                    val isCurrent = minutes == currentMinutes
+                    val isCurrent = minutes == currentMinutes &&
+                        !(minutes == 0 && endOfChapter)
                     val mod = Modifier
                         .fillMaxWidth()
                         .height(40.dp)
@@ -141,27 +143,65 @@ fun SleepTimerPanel(
 
                 // Only offered when the loaded book has chapter data: a
                 // chapter stop can never fire on a chapterless book, so
-                // showing the switch there would arm a promise the player
-                // cannot keep. Toggling does NOT dismiss -- the point is
-                // combining it with a minutes preset in one panel visit.
+                // showing the row there would arm a promise the player
+                // cannot keep. This row is a PEER of the minutes presets,
+                // so exactly one row is ever filled; combining is the
+                // subordinate toggle underneath a chosen preset.
                 if (showEndOfChapter) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    EndOfChapterRow(
+                    ChapterStopSection(
+                        currentMinutes = currentMinutes,
                         endOfChapter = endOfChapter,
-                        onToggle = { onToggleEndOfChapter(!endOfChapter) },
+                        onPickEndOfChapter = {
+                            onPickEndOfChapter()
+                            onDismiss()
+                        },
+                        onToggleEndOfChapter = onToggleEndOfChapter,
                         colors = colors,
                     )
-                    if (endOfChapter && currentMinutes > 0) {
-                        Text(
-                            text = "Counts down $currentMinutes min, then stops at the chapter end",
-                            color = colors.onSurfaceVariant,
-                            fontSize = 12.sp,
-                        )
-                    }
                 }
 
                 LaunchedEffect(Unit) { initialFocus.requestFocus() }
             }
+        }
+    }
+}
+
+/**
+ * The chapter-stop block: an exclusive "End of chapter" mode row, plus the
+ * subordinate combine toggle that only exists once a minutes preset is
+ * chosen. Split out of the panel body to keep it under detekt's limits.
+ */
+@Composable
+private fun ChapterStopSection(
+    currentMinutes: Int,
+    endOfChapter: Boolean,
+    onPickEndOfChapter: () -> Unit,
+    onToggleEndOfChapter: (Boolean) -> Unit,
+    colors: androidx.tv.material3.ColorScheme,
+) {
+    Spacer(modifier = Modifier.height(8.dp))
+    EndOfChapterRow(
+        endOfChapter = endOfChapter && currentMinutes == 0,
+        label = "End of chapter",
+        trailing = null,
+        onToggle = onPickEndOfChapter,
+        colors = colors,
+    )
+    if (currentMinutes > 0) {
+        Spacer(modifier = Modifier.height(8.dp))
+        EndOfChapterRow(
+            endOfChapter = endOfChapter,
+            label = "then stop at the chapter end",
+            trailing = if (endOfChapter) "On" else "Off",
+            onToggle = { onToggleEndOfChapter(!endOfChapter) },
+            colors = colors,
+        )
+        if (endOfChapter) {
+            Text(
+                text = "Counts down $currentMinutes min, then stops at the chapter end",
+                color = colors.onSurfaceVariant,
+                fontSize = 12.sp,
+            )
         }
     }
 }
@@ -174,6 +214,8 @@ fun SleepTimerPanel(
 @Composable
 private fun EndOfChapterRow(
     endOfChapter: Boolean,
+    label: String,
+    trailing: String?,
     onToggle: () -> Unit,
     colors: androidx.tv.material3.ColorScheme,
 ) {
@@ -199,8 +241,8 @@ private fun EndOfChapterRow(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
-            Text(text = "End of chapter", fontSize = 18.sp)
-            Text(text = if (endOfChapter) "On" else "Off", fontSize = 14.sp)
+            Text(text = label, fontSize = 18.sp)
+            if (trailing != null) Text(text = trailing, fontSize = 14.sp)
         }
     }
 }

@@ -228,6 +228,7 @@ fun PlayerScreen(
                 showEndOfChapter = state.chapters.isNotEmpty(),
                 onSelect = viewModel::setSleepTimerMinutes,
                 onToggleEndOfChapter = viewModel::setSleepEndOfChapter,
+                onPickEndOfChapter = viewModel::selectSleepEndOfChapterOnly,
                 onDismiss = viewModel::closeSleepTimerPanel,
             )
         }

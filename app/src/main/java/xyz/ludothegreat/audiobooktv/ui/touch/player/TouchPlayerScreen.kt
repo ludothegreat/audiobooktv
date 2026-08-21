@@ -219,6 +219,7 @@ private fun PlayerSheets(state: PlayerUiState, viewModel: PlayerViewModel) {
                 viewModel.closeSleepTimerPanel()
             },
             onToggleEndOfChapter = viewModel::setSleepEndOfChapter,
+            onPickEndOfChapter = viewModel::selectSleepEndOfChapterOnly,
             onDismiss = viewModel::closeSleepTimerPanel,
         )
     }
