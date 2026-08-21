@@ -414,10 +414,14 @@ private fun ControlRow(
 /**
  * The coarse-jump row under the transport: the labeled 5m long-skip pair
  * (the dual-granularity add) plus Undo when there is a seek to undo.
- * « 5m sits directly under « 30 so the two granularities column-align by
- * direction -- back-jumps stacked left, forward-jumps stacked right. Undo
- * comes last because it appears and disappears; at the row's end it never
- * shifts the long-skip targets the user is aiming at.
+ * The pair is centered in the column, which the control row above spans
+ * almost fully, so it hangs visually under the middle of the transport
+ * cluster instead of dangling off its left edge as an orphaned two-button
+ * row. Undo overlays end-aligned in the same band: it appears and
+ * disappears, and out at the edge it never shifts the long-skip targets
+ * the user is aiming at, while the pair's centering is not disturbed by
+ * its presence. The Undo label is compact ("Undo to 1:23:45") so the
+ * worst monospace case leaves clear air between it and the pair.
  */
 @Composable
 private fun JumpRow(
@@ -427,14 +431,21 @@ private fun JumpRow(
     onUndo: () -> Unit,
     colors: androidx.tv.material3.ColorScheme,
 ) {
-    Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
-        ControlButton(label = SkipLabels.back(SeekTargets.LONG_SKIP_SECONDS), onClick = onLongSkipBack, colors = colors)
-        ControlButton(label = SkipLabels.forward(SeekTargets.LONG_SKIP_SECONDS), onClick = onLongSkipForward, colors = colors)
+    Box(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.align(Alignment.Center),
+        ) {
+            ControlButton(label = SkipLabels.back(SeekTargets.LONG_SKIP_SECONDS), onClick = onLongSkipBack, colors = colors)
+            ControlButton(label = SkipLabels.forward(SeekTargets.LONG_SKIP_SECONDS), onClick = onLongSkipForward, colors = colors)
+        }
         if (undoTargetSec != null) {
             ControlButton(
-                label = "Undo seek to ${formatTimestampHms(undoTargetSec)}",
+                label = "Undo to ${formatTimestampHms(undoTargetSec)}",
                 onClick = onUndo,
                 colors = colors,
+                modifier = Modifier.align(Alignment.CenterEnd),
             )
         }
     }
@@ -453,6 +464,7 @@ private fun ControlButton(
     onClick: () -> Unit,
     colors: androidx.tv.material3.ColorScheme,
     emphasised: Boolean = false,
+    modifier: Modifier = Modifier,
 ) {
     Surface(
         onClick = onClick,
@@ -475,7 +487,7 @@ private fun ControlButton(
                 shape = RoundedCornerShape(8.dp),
             ),
         ),
-        modifier = Modifier.height(40.dp),
+        modifier = modifier.height(40.dp),
     ) {
         // fillMaxHeight only, never fillMaxSize: this width-less tv Surface
         // sits in a bounded Row, where a fillMaxSize content Box makes the
