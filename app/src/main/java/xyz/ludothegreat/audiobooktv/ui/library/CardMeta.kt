@@ -1,6 +1,7 @@
 package xyz.ludothegreat.audiobooktv.ui.library
 
 import xyz.ludothegreat.audiobooktv.domain.metadataField
+import kotlin.math.roundToInt
 
 /**
  * Pure text/geometry logic for the library cards on both surfaces. All of
@@ -48,4 +49,17 @@ internal object CardMeta {
 
     /** Cover-bar fill fraction; server fractions outside 0..1 are clamped. */
     fun barFraction(progressFraction: Double): Float = progressFraction.toFloat().coerceIn(0f, 1f)
+
+    /**
+     * Explicit progress value for STARTED covers, from the same cached
+     * fraction the bar uses. Clamped into 1..99: a STARTED card must never
+     * claim "0%" (that is NEW's story) or "100%" (that is the finished
+     * badge's), even when rounding lands there. Null outside (0, 1)
+     * because those cards are NEW or FINISHED and carry no percent at all.
+     */
+    fun percentLabel(progressFraction: Double): String? {
+        if (progressFraction <= 0.0 || progressFraction >= 1.0) return null
+        val percent = (progressFraction * 100).roundToInt().coerceIn(1, 99)
+        return "$percent%"
+    }
 }

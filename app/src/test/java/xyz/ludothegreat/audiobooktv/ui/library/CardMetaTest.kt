@@ -86,6 +86,37 @@ class CardMetaTest {
         assertNull(CardMeta.metaParts("  ", -1))
     }
 
+    // ---- percentLabel ----
+
+    @Test
+    fun `started fraction reads as a rounded percent`() {
+        assertEquals("25%", CardMeta.percentLabel(0.25))
+        assertEquals("34%", CardMeta.percentLabel(0.344))
+        assertEquals("35%", CardMeta.percentLabel(0.346))
+    }
+
+    @Test
+    fun `a barely started book claims 1 percent, never 0`() {
+        // 0.001 rounds to 0, but a STARTED card saying "0%" contradicts
+        // the segment chip that claims it. Floor at 1.
+        assertEquals("1%", CardMeta.percentLabel(0.001))
+    }
+
+    @Test
+    fun `an almost finished book claims 99 percent, never 100`() {
+        // "100%" is the finished badge's claim; a STARTED card must stop
+        // at 99 even when rounding lands on 100.
+        assertEquals("99%", CardMeta.percentLabel(0.9999))
+    }
+
+    @Test
+    fun `fractions outside the started range carry no percent`() {
+        assertNull(CardMeta.percentLabel(0.0))
+        assertNull(CardMeta.percentLabel(-0.2))
+        assertNull(CardMeta.percentLabel(1.0))
+        assertNull(CardMeta.percentLabel(1.5))
+    }
+
     // ---- barFraction ----
 
     @Test

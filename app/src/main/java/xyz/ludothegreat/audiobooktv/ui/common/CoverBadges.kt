@@ -6,8 +6,11 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicText
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.runtime.Composable
@@ -15,8 +18,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 
 /**
  * Cover-status overlays shared by the TV and touch library cards. Like
@@ -46,6 +52,33 @@ fun CoverProgressBar(
                 .background(fillColor),
         )
     }
+}
+
+/**
+ * Explicit percent readout for STARTED covers, sitting just above the
+ * progress strip. The strip alone is a few pixels of fill that vanishes at
+ * couch distance; this is the number that survives 3 metres. Callers pass
+ * a scrimmed container color so the text holds contrast over any cover
+ * art. BasicText keeps this file toolkit-agnostic like its neighbours.
+ */
+@Composable
+fun CoverPercentBadge(
+    text: String,
+    containerColor: Color,
+    contentColor: Color,
+    modifier: Modifier = Modifier,
+) {
+    BasicText(
+        text = text,
+        style = TextStyle(
+            color = contentColor,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.SemiBold,
+        ),
+        modifier = modifier
+            .background(containerColor, RoundedCornerShape(4.dp))
+            .padding(horizontal = 5.dp, vertical = 2.dp),
+    )
 }
 
 /** Filled-circle check for FINISHED covers, kept at full strength on top of the dimmed cover. */

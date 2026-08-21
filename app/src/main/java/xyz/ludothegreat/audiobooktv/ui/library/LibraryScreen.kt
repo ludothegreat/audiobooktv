@@ -47,6 +47,7 @@ import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
 import xyz.ludothegreat.audiobooktv.domain.Book
 import xyz.ludothegreat.audiobooktv.ui.common.CoverArt
+import xyz.ludothegreat.audiobooktv.ui.common.CoverPercentBadge
 import xyz.ludothegreat.audiobooktv.ui.common.CoverProgressBar
 import xyz.ludothegreat.audiobooktv.ui.common.FinishedCheckBadge
 import xyz.ludothegreat.audiobooktv.ui.common.dpadFocusEscape
@@ -286,13 +287,28 @@ private fun BookTile(book: Book, onClick: () -> Unit, modifier: Modifier = Modif
                     modifier = Modifier.fillMaxSize().alpha(contentAlpha),
                 )
                 when (status) {
-                    StatusSegment.STARTED -> CoverProgressBar(
-                        fraction = CardMeta.barFraction(book.progressFraction),
-                        trackColor = colors.background,
-                        fillColor = colors.primary,
-                        height = 5.dp,
-                        modifier = Modifier.align(Alignment.BottomCenter),
-                    )
+                    StatusSegment.STARTED -> {
+                        CoverProgressBar(
+                            fraction = CardMeta.barFraction(book.progressFraction),
+                            trackColor = colors.background,
+                            fillColor = colors.primary,
+                            height = 6.dp,
+                            modifier = Modifier.align(Alignment.BottomCenter),
+                        )
+                        // The bar sliver is invisible at couch distance;
+                        // the percent is the value that reads at 3 metres.
+                        // Same cached fraction, no extra fetch.
+                        CardMeta.percentLabel(book.progressFraction)?.let { percent ->
+                            CoverPercentBadge(
+                                text = percent,
+                                containerColor = colors.background.copy(alpha = 0.72f),
+                                contentColor = colors.onBackground,
+                                modifier = Modifier
+                                    .align(Alignment.BottomEnd)
+                                    .padding(end = 5.dp, bottom = 11.dp),
+                            )
+                        }
+                    }
                     StatusSegment.FINISHED -> FinishedCheckBadge(
                         containerColor = colors.primary,
                         contentColor = colors.onPrimary,
