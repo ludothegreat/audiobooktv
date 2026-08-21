@@ -141,6 +141,7 @@ fun PlayerScreen(
                         positionSec = state.positionSec,
                         durationSec = state.durationSec,
                         speed = state.speed,
+                        labeled = chapterIndex != null,
                         colors = colors,
                     )
                     Spacer(modifier = Modifier.height(24.dp))
@@ -241,16 +242,21 @@ private fun ChapterProgressRow(
     val absSec = positionSec.toDouble()
     val fraction = ChapterMath.progressFraction(absSec, chapter)
     Row(verticalAlignment = Alignment.CenterVertically) {
+        BarTag(text = "CHAPTER", colors = colors)
         Text(
             text = formatTimestampHms(ChapterMath.elapsedSec(absSec, chapter).toLong()),
             color = colors.onSurfaceVariant,
             fontSize = 14.sp,
         )
         Spacer(modifier = Modifier.width(12.dp))
+        // weight, not fillMaxWidth(0.7f): the endpoint text measures first
+        // at its intrinsic width and the bar takes exactly what is left, so
+        // adding the tag column cannot squeeze "-10:04:03 · 25%" into a
+        // two-line wrap (which the old fixed fraction did on the TV device).
         Box(
             modifier = Modifier
                 .height(6.dp)
-                .fillMaxWidth(0.7f)
+                .weight(1f)
                 .background(colors.surface, RoundedCornerShape(3.dp)),
         ) {
             Box(
@@ -274,9 +280,18 @@ private fun ChapterProgressRow(
  * chapter bar's convention: a speed-aware negative countdown plus the
  * whole-book percent, instead of the static total duration. While duration
  * is unknown the endpoint falls back to 0:00 rather than a fake countdown.
+ * [labeled] is true only when the chapter bar is showing above: with two
+ * bars the BOOK tag makes the pairing instant at 10 feet, with one bar
+ * there is nothing to disambiguate and the tag would be noise.
  */
 @Composable
-private fun ProgressRow(positionSec: Long, durationSec: Long, speed: Float, colors: androidx.tv.material3.ColorScheme) {
+private fun ProgressRow(
+    positionSec: Long,
+    durationSec: Long,
+    speed: Float,
+    labeled: Boolean,
+    colors: androidx.tv.material3.ColorScheme,
+) {
     val fraction = if (durationSec > 0) positionSec.toFloat() / durationSec.toFloat() else 0f
     val endLabel = if (durationSec > 0) {
         val remaining = BookProgress.remainingSecAtSpeed(positionSec, durationSec, speed)
@@ -285,12 +300,16 @@ private fun ProgressRow(positionSec: Long, durationSec: Long, speed: Float, colo
         formatTimestampHms(0)
     }
     Row(verticalAlignment = Alignment.CenterVertically) {
+        if (labeled) {
+            BarTag(text = "BOOK", colors = colors)
+        }
         Text(text = formatTimestampHms(positionSec), color = colors.onSurfaceVariant, fontSize = 14.sp)
         Spacer(modifier = Modifier.width(12.dp))
+        // Same weight-not-fraction rule as the chapter bar above.
         Box(
             modifier = Modifier
                 .height(6.dp)
-                .fillMaxWidth(0.7f)
+                .weight(1f)
                 .background(colors.surface, RoundedCornerShape(3.dp)),
         ) {
             Box(
@@ -303,6 +322,26 @@ private fun ProgressRow(positionSec: Long, durationSec: Long, speed: Float, colo
         Spacer(modifier = Modifier.width(12.dp))
         Text(text = endLabel, color = colors.onSurfaceVariant, fontSize = 14.sp)
     }
+}
+
+/**
+ * Tiny muted tag naming which bar is which. Fixed width so the CHAPTER and
+ * BOOK rows keep their timestamps and bars column-aligned; sized well under
+ * the muted timestamps so it labels the pairing without crowding the row.
+ * The ellipsis is the canary if a future tag outgrows the column.
+ */
+@Composable
+private fun BarTag(text: String, colors: androidx.tv.material3.ColorScheme) {
+    Text(
+        text = text,
+        color = colors.onSurfaceVariant,
+        fontSize = 10.sp,
+        letterSpacing = 1.5.sp,
+        maxLines = 1,
+        softWrap = false,
+        overflow = TextOverflow.Ellipsis,
+        modifier = Modifier.width(68.dp),
+    )
 }
 
 /** The chapter affordance of the control row: its live counter label plus the picker opener. */

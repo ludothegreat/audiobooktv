@@ -151,6 +151,7 @@ fun TouchPlayerScreen(
                 positionSec = state.positionSec,
                 durationSec = state.durationSec,
                 speed = state.speed,
+                labeled = chapterIndex != null,
                 onScrub = viewModel::seekToAbsoluteSec,
             )
 
@@ -353,11 +354,17 @@ private fun ChapterRow(title: String, positionSec: Long, chapter: AbsChapter, sp
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
-            Text(
-                text = formatTimestampHms(ChapterMath.elapsedSec(absSec, chapter).toLong()),
-                color = colors.onSurfaceVariant,
-                style = MaterialTheme.typography.labelMedium,
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                BarTag(text = "CHAPTER")
+                Text(
+                    text = formatTimestampHms(ChapterMath.elapsedSec(absSec, chapter).toLong()),
+                    color = colors.onSurfaceVariant,
+                    style = MaterialTheme.typography.labelMedium,
+                )
+            }
             Text(
                 text = ChapterMath.remainingLabel(ChapterMath.remainingSecAtSpeed(absSec, chapter, speed)),
                 color = colors.onSurfaceVariant,
@@ -367,8 +374,31 @@ private fun ChapterRow(title: String, positionSec: Long, chapter: AbsChapter, sp
     }
 }
 
+/**
+ * Tiny muted tag naming which bar is which, shown only while both bars are
+ * on screen (the chapter row's presence is what makes the pairing
+ * ambiguous). Sits inline with the under-bar timestamps so it costs no
+ * vertical space.
+ */
 @Composable
-private fun ScrubberRow(positionSec: Long, durationSec: Long, speed: Float, onScrub: (Long) -> Unit) {
+private fun BarTag(text: String) {
+    Text(
+        text = text,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        fontSize = 9.sp,
+        letterSpacing = 1.2.sp,
+        maxLines = 1,
+    )
+}
+
+@Composable
+private fun ScrubberRow(
+    positionSec: Long,
+    durationSec: Long,
+    speed: Float,
+    labeled: Boolean,
+    onScrub: (Long) -> Unit,
+) {
     val colors = MaterialTheme.colorScheme
     var dragging by remember { mutableStateOf(false) }
     var dragValueSec by remember { mutableStateOf(positionSec) }
@@ -407,11 +437,19 @@ private fun ScrubberRow(positionSec: Long, durationSec: Long, speed: Float, onSc
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
-            Text(
-                text = formatTimestampHms(displaySec),
-                color = colors.onSurfaceVariant,
-                style = MaterialTheme.typography.labelMedium,
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                if (labeled) {
+                    BarTag(text = "BOOK")
+                }
+                Text(
+                    text = formatTimestampHms(displaySec),
+                    color = colors.onSurfaceVariant,
+                    style = MaterialTheme.typography.labelMedium,
+                )
+            }
             // Same right-endpoint convention as the chapter bar and the TV
             // book bar: speed-aware negative countdown plus book percent.
             // A drag shows the countdown from the drag position live.
