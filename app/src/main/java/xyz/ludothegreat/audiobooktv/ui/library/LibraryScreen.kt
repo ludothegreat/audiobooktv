@@ -46,6 +46,8 @@ import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
 import xyz.ludothegreat.audiobooktv.domain.Book
 import xyz.ludothegreat.audiobooktv.ui.common.CoverArt
+import xyz.ludothegreat.audiobooktv.ui.common.CoverProgressBar
+import xyz.ludothegreat.audiobooktv.ui.common.FinishedCheckBadge
 import xyz.ludothegreat.audiobooktv.ui.common.dpadFocusEscape
 
 @Composable
@@ -231,8 +233,17 @@ private fun BookGrid(
 @Composable
 private fun BookTile(book: Book, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val colors = MaterialTheme.colorScheme
-    val tileAlpha = if (book.isFinished) 0.45f else 1.0f
+    // One derivation for card treatment AND the segment chips: a book the
+    // Finished chip claims always carries the check, a book the Started
+    // chip claims always carries the bar. Do not re-derive from raw
+    // progressFraction here or the two views drift apart.
+    val status = LibraryFilter.statusOf(book)
+    // Finished tiles dim cover and text but NOT the overlay badge or the
+    // focus border: the dim used to sit on the whole Surface, which faded
+    // the orange focus ring to 45% as well.
+    val contentAlpha = if (status == StatusSegment.FINISHED) 0.45f else 1.0f
     val seriesLine = SeriesLabel.seriesLine(book.series)
+    val metaLine = CardMeta.metaLine(book.author, book.durationSec)
 
     Surface(
         onClick = onClick,
@@ -250,44 +261,99 @@ private fun BookTile(book: Book, onClick: () -> Unit, modifier: Modifier = Modif
                 shape = RoundedCornerShape(6.dp),
             ),
         ),
-        modifier = modifier.fillMaxWidth().alpha(tileAlpha),
+        modifier = modifier.fillMaxWidth(),
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
-            CoverArt(
-                model = book.coverUrl,
-                contentDescription = book.title,
-                title = book.title,
-                containerColor = colors.surfaceVariant,
-                contentColor = colors.onSurfaceVariant,
-                initialsSize = 32.sp,
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .aspectRatio(1f)
                     .clip(RoundedCornerShape(topStart = 6.dp, topEnd = 6.dp)),
-            )
-            Text(
-                text = SeriesLabel.numberedTitle(book.title, book.series),
-                color = colors.onSurface,
-                fontSize = 13.sp,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.fillMaxWidth().padding(
-                    start = 8.dp,
-                    end = 8.dp,
-                    top = 8.dp,
-                    bottom = if (seriesLine == null) 8.dp else 2.dp,
-                ),
-            )
-            if (seriesLine != null) {
-                Text(
-                    text = seriesLine,
-                    color = colors.onSurfaceVariant,
-                    fontSize = 11.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.fillMaxWidth().padding(start = 8.dp, end = 8.dp, bottom = 8.dp),
+            ) {
+                CoverArt(
+                    model = book.coverUrl,
+                    contentDescription = book.title,
+                    title = book.title,
+                    containerColor = colors.surfaceVariant,
+                    contentColor = colors.onSurfaceVariant,
+                    initialsSize = 32.sp,
+                    modifier = Modifier.fillMaxSize().alpha(contentAlpha),
                 )
+                when (status) {
+                    StatusSegment.STARTED -> CoverProgressBar(
+                        fraction = CardMeta.barFraction(book.progressFraction),
+                        trackColor = colors.background,
+                        fillColor = colors.primary,
+                        height = 5.dp,
+                        modifier = Modifier.align(Alignment.BottomCenter),
+                    )
+                    StatusSegment.FINISHED -> FinishedCheckBadge(
+                        containerColor = colors.primary,
+                        contentColor = colors.onPrimary,
+                        modifier = Modifier.align(Alignment.TopEnd).padding(6.dp),
+                    )
+                    StatusSegment.NEW, StatusSegment.ALL -> Unit
+                }
             }
+            TileCaption(
+                title = SeriesLabel.numberedTitle(book.title, book.series),
+                seriesLine = seriesLine,
+                metaLine = metaLine,
+                contentAlpha = contentAlpha,
+                colors = colors,
+            )
         }
+    }
+}
+
+@Composable
+private fun TileCaption(
+    title: String,
+    seriesLine: String?,
+    metaLine: String?,
+    contentAlpha: Float,
+    colors: androidx.tv.material3.ColorScheme,
+) {
+    Text(
+        text = title,
+        color = colors.onSurface,
+        fontSize = 13.sp,
+        maxLines = 2,
+        overflow = TextOverflow.Ellipsis,
+        modifier = Modifier
+            .fillMaxWidth()
+            .alpha(contentAlpha)
+            .padding(
+                start = 8.dp,
+                end = 8.dp,
+                top = 8.dp,
+                bottom = if (seriesLine == null && metaLine == null) 8.dp else 2.dp,
+            ),
+    )
+    if (seriesLine != null) {
+        Text(
+            text = seriesLine,
+            color = colors.onSurfaceVariant,
+            fontSize = 11.sp,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier
+                .fillMaxWidth()
+                .alpha(contentAlpha)
+                .padding(start = 8.dp, end = 8.dp, bottom = if (metaLine == null) 8.dp else 2.dp),
+        )
+    }
+    if (metaLine != null) {
+        Text(
+            text = metaLine,
+            color = colors.onSurfaceVariant,
+            fontSize = 11.sp,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier
+                .fillMaxWidth()
+                .alpha(contentAlpha)
+                .padding(start = 8.dp, end = 8.dp, bottom = 8.dp),
+        )
     }
 }
