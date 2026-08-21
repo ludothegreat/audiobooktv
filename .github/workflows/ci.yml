@@ -101,4 +101,8 @@ jobs:
           files: audiobooktv-${{ env.TAG }}.apk
           generate_release_notes: true
           fail_on_unmatched_files: true
+          # append_body puts the preamble AFTER the generated notes. body_path
+          # is silently ignored when generate_release_notes is on, which is how
+          # v1.3.0 shipped without its upgrade warning until it was edited in.
+          append_body: true
           body_path: .github/release-preamble.md
