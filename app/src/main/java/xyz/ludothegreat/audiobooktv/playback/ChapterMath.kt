@@ -31,8 +31,7 @@ object ChapterMath {
     fun chapterDurationSec(chapter: AbsChapter): Double = (chapter.end - chapter.start).coerceAtLeast(0.0)
 
     /** Seconds listened inside [chapter], clamped into its envelope. */
-    fun elapsedSec(absSec: Double, chapter: AbsChapter): Double =
-        (absSec - chapter.start).coerceIn(0.0, chapterDurationSec(chapter))
+    fun elapsedSec(absSec: Double, chapter: AbsChapter): Double = (absSec - chapter.start).coerceIn(0.0, chapterDurationSec(chapter))
 
     /** Fill fraction for the chapter bar. A zero-length chapter reads as 0. */
     fun progressFraction(absSec: Double, chapter: AbsChapter): Float {

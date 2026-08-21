@@ -33,6 +33,7 @@ import xyz.ludothegreat.audiobooktv.data.settings.SpeedStore
 import xyz.ludothegreat.audiobooktv.domain.Bookmark
 import xyz.ludothegreat.audiobooktv.playback.BookmarkList
 import xyz.ludothegreat.audiobooktv.playback.BookmarksRepository
+import xyz.ludothegreat.audiobooktv.playback.ChapterMath
 import xyz.ludothegreat.audiobooktv.playback.PlaybackRepository
 import xyz.ludothegreat.audiobooktv.playback.PlayerService
 import xyz.ludothegreat.audiobooktv.playback.PositionMath
@@ -56,6 +57,14 @@ data class PlayerUiState(
     val speed: Float = 1.0f,
     val speedPanelVisible: Boolean = false,
     val bookmarkPanelVisible: Boolean = false,
+    /**
+     * Chapter records from the play-session payload, empty when the book has
+     * none. The surfaces derive the current chapter, its bar fill, and the
+     * negative remaining label from this plus positionSec via ChapterMath, so
+     * there is no per-tick chapter state to keep in sync here.
+     */
+    val chapters: List<AbsChapter> = emptyList(),
+    val chapterPanelVisible: Boolean = false,
     val bookmarks: List<Bookmark> = emptyList(),
     val bookmarksLoading: Boolean = false,
     val isReconnecting: Boolean = false,
@@ -232,7 +241,9 @@ class PlayerViewModel @Inject constructor(
         }
         if (!controllerReady.value) {
             pendingLoad = itemId to coverUrl
-            _state.update { it.copy(loading = true, itemId = itemId, coverUrl = coverUrl, error = null) }
+            _state.update {
+                it.copy(loading = true, itemId = itemId, coverUrl = coverUrl, chapters = emptyList(), error = null)
+            }
             return
         }
         // Close any previous server session before opening a new one for a
@@ -246,7 +257,12 @@ class PlayerViewModel @Inject constructor(
         // If the timer was at 5 min remaining of a 30-min preset and the
         // user opens a different book, the next playback gets a fresh 30 min.
         sleepCountdown.setDuration(_state.value.sleepTimerMinutes)
-        _state.update { it.copy(loading = true, itemId = itemId, coverUrl = coverUrl, error = null) }
+        // Clear the previous book's chapters for the whole load window --
+        // stale chapter data against the new book's positions would light up
+        // a wrong (or ghost) chapter bar until openPlayback returns.
+        _state.update {
+            it.copy(loading = true, itemId = itemId, coverUrl = coverUrl, chapters = emptyList(), error = null)
+        }
         viewModelScope.launch {
             runCatching { playbackRepository.openPlayback(itemId) }
                 .onSuccess { prep ->
@@ -270,6 +286,7 @@ class PlayerViewModel @Inject constructor(
                             author = prep.session.displayAuthor ?: "",
                             durationSec = prep.session.duration.toLong(),
                             positionSec = prep.resumePositionMs / 1000,
+                            chapters = prep.session.chapters,
                             chapterTitle = currentChapterTitle(prep.resumePositionMs / 1000.0),
                             isPlaying = ctl.isPlaying,
                             speed = savedSpeed,
@@ -337,10 +354,11 @@ class PlayerViewModel @Inject constructor(
     }
 
     /**
-     * Touch-only entry point: drag-to-position from the scrubber. Same
-     * server-truth invariant as skip-30: clamp to the book's envelope, seek
-     * the player, then push the new position so togglePlayPause's pre-play
-     * refresh doesn't yank us back. TV UI does not call this (no scrubber).
+     * Absolute-position user seek: the touch scrubber commits here, and
+     * jumpToChapter routes through here on both surfaces. Same server-truth
+     * invariant as skip-30: clamp to the book's envelope, seek the player,
+     * then push the new position so togglePlayPause's pre-play refresh
+     * doesn't yank us back.
      */
     fun seekToAbsoluteSec(seconds: Long) {
         if (controller == null) return
@@ -390,6 +408,24 @@ class PlayerViewModel @Inject constructor(
             sleepCountdown.setDuration(minutes)
             sleepCountdown.resume()
         }
+    }
+
+    fun openChapterPanel() {
+        _state.update { it.copy(chapterPanelVisible = true) }
+    }
+
+    fun closeChapterPanel() {
+        _state.update { it.copy(chapterPanelVisible = false) }
+    }
+
+    /**
+     * Chapter jump is a user-initiated seek, so it must ride the existing
+     * clamp-seek-push path -- seekToAbsoluteSec drops the jump entirely
+     * while duration is unknown (nullable-clamp contract) and pushes the
+     * landed position to the server. No parallel seek path here.
+     */
+    fun jumpToChapter(chapter: AbsChapter) {
+        seekToAbsoluteSec(ChapterMath.jumpTargetSec(chapter))
     }
 
     fun openBookmarkPanel() {

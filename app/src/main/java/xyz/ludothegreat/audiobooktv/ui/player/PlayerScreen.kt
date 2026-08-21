@@ -37,7 +37,10 @@ import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import coil3.compose.AsyncImage
 import xyz.ludothegreat.audiobooktv.R
+import xyz.ludothegreat.audiobooktv.data.abs.dto.AbsChapter
+import xyz.ludothegreat.audiobooktv.playback.ChapterMath
 import xyz.ludothegreat.audiobooktv.playback.formatSleepLabel
+import xyz.ludothegreat.audiobooktv.playback.formatTimestampHms
 
 @Composable
 fun PlayerScreen(
@@ -47,6 +50,7 @@ fun PlayerScreen(
 ) {
     val state by viewModel.state.collectAsState()
     val colors = MaterialTheme.colorScheme
+    val chapterIndex = ChapterMath.indexAt(state.positionSec.toDouble(), state.chapters)
 
     LaunchedEffect(itemId) {
         if (!itemId.isNullOrBlank()) {
@@ -111,19 +115,28 @@ fun PlayerScreen(
                 }
 
                 Column {
+                    if (chapterIndex != null) {
+                        ChapterProgressRow(
+                            positionSec = state.positionSec,
+                            chapter = state.chapters[chapterIndex],
+                            speed = state.speed,
+                            colors = colors,
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
                     ProgressRow(positionSec = state.positionSec, durationSec = state.durationSec, colors = colors)
                     Spacer(modifier = Modifier.height(24.dp))
                     ControlRow(
                         isPlaying = state.isPlaying,
                         speed = state.speed,
-                        sleepTimerMinutes = state.sleepTimerMinutes,
-                        sleepTimerRemainingSec = state.sleepTimerRemainingSec,
+                        sleepLabel = formatSleepLabel(state.sleepTimerMinutes, state.sleepTimerRemainingSec),
                         onSkipBack = viewModel::skipBack30,
                         onPlayPause = viewModel::togglePlayPause,
                         onSkipForward = viewModel::skipForward30,
                         onCycleSpeed = viewModel::openSpeedPanel,
                         onBookmark = viewModel::openBookmarkPanel,
                         onSleepTimer = viewModel::openSleepTimerPanel,
+                        onChapters = if (state.chapters.isNotEmpty()) viewModel::openChapterPanel else null,
                         colors = colors,
                     )
                     state.error?.let { msg ->
@@ -161,6 +174,60 @@ fun PlayerScreen(
                 onDismiss = viewModel::closeSleepTimerPanel,
             )
         }
+
+        if (state.chapterPanelVisible) {
+            ChapterPanel(
+                chapters = state.chapters,
+                currentIndex = chapterIndex,
+                onSelect = viewModel::jumpToChapter,
+                onDismiss = viewModel::closeChapterPanel,
+            )
+        }
+    }
+}
+
+/**
+ * Chapter half of the dual position display: elapsed inside the chapter, a
+ * bar filled with the dim primary token so it reads as the book bar's
+ * quieter sibling, and the "-12:34" until-next-chapter countdown at the
+ * playback rate. Rendered only while the head is inside a chapter -- a book
+ * without chapter data keeps the plain single-bar layout.
+ */
+@Composable
+private fun ChapterProgressRow(
+    positionSec: Long,
+    chapter: AbsChapter,
+    speed: Float,
+    colors: androidx.tv.material3.ColorScheme,
+) {
+    val absSec = positionSec.toDouble()
+    val fraction = ChapterMath.progressFraction(absSec, chapter)
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            text = formatTimestampHms(ChapterMath.elapsedSec(absSec, chapter).toLong()),
+            color = colors.onSurfaceVariant,
+            fontSize = 14.sp,
+        )
+        Spacer(modifier = Modifier.width(12.dp))
+        Box(
+            modifier = Modifier
+                .height(6.dp)
+                .fillMaxWidth(0.7f)
+                .background(colors.surface, RoundedCornerShape(3.dp)),
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .fillMaxWidth(fraction)
+                    .background(colors.primaryContainer, RoundedCornerShape(3.dp)),
+            )
+        }
+        Spacer(modifier = Modifier.width(12.dp))
+        Text(
+            text = ChapterMath.remainingLabel(ChapterMath.remainingSecAtSpeed(absSec, chapter, speed)),
+            color = colors.onSurfaceVariant,
+            fontSize = 14.sp,
+        )
     }
 }
 
@@ -192,14 +259,14 @@ private fun ProgressRow(positionSec: Long, durationSec: Long, colors: androidx.t
 private fun ControlRow(
     isPlaying: Boolean,
     speed: Float,
-    sleepTimerMinutes: Int,
-    sleepTimerRemainingSec: Long?,
+    sleepLabel: String,
     onSkipBack: () -> Unit,
     onPlayPause: () -> Unit,
     onSkipForward: () -> Unit,
     onCycleSpeed: () -> Unit,
     onBookmark: () -> Unit,
     onSleepTimer: () -> Unit,
+    onChapters: (() -> Unit)?,
     colors: androidx.tv.material3.ColorScheme,
 ) {
     Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -208,11 +275,13 @@ private fun ControlRow(
         ControlButton(label = "30 »", onClick = onSkipForward, colors = colors)
         ControlButton(label = formatSpeed(speed), onClick = onCycleSpeed, colors = colors)
         ControlButton(label = "Mark", onClick = onBookmark, colors = colors)
-        ControlButton(
-            label = formatSleepLabel(sleepTimerMinutes, sleepTimerRemainingSec),
-            onClick = onSleepTimer,
-            colors = colors,
-        )
+        ControlButton(label = sleepLabel, onClick = onSleepTimer, colors = colors)
+        // Null when the book has no chapter data: chapterless books keep the
+        // exact 6-button row that already fits. The ControlButton ellipsis
+        // canary still guards the widest 7-button case.
+        if (onChapters != null) {
+            ControlButton(label = "Chapters", onClick = onChapters, colors = colors)
+        }
     }
 }
 

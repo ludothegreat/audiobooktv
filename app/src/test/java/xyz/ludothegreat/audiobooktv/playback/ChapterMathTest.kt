@@ -14,8 +14,7 @@ import xyz.ludothegreat.audiobooktv.data.abs.dto.AbsChapter
  */
 class ChapterMathTest {
 
-    private fun chapter(id: Int, start: Double, end: Double) =
-        AbsChapter(id = id, start = start, end = end, title = "Chapter $id")
+    private fun chapter(id: Int, start: Double, end: Double) = AbsChapter(id = id, start = start, end = end, title = "Chapter $id")
 
     private val three = listOf(
         chapter(0, 0.0, 100.0),
