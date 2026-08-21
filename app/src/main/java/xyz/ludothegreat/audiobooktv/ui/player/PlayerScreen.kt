@@ -72,13 +72,15 @@ fun PlayerScreen(
         }
 
         // Cover width and gap are sized around the control row. The TV device
-        // renders 1920x1080 at density 320, so the screen is 960dp wide and
-        // the column beside the 248dp cover and 24dp gap gets 608dp inside
-        // the 40dp screen padding. The nine compact Surface controls need
-        // ~525dp under Gruvbox and ~590dp worst-case under NeonLightning's
-        // monospace (59:59 countdown + 1.75x + Ch 10/30 all at once), so
-        // they fit on one row; the ControlButton ellipsis is the canary if
-        // a label ever outgrows that budget.
+        // renders 1920x1080 at density 320 (960dp), and this screen mounts
+        // INSIDE RootScaffold's 120dp nav rail, so the column beside the
+        // 248dp cover and 24dp gap gets 840 - 80 - 248 - 24 = 488dp. That
+        // budget fits SEVEN compact controls in the worst state (Pause +
+        // 1.75x + 59:59+ + Ch 10/30 under NeonLightning's monospace is
+        // ~482dp); it does NOT fit nine, which is why the 5m long-skip
+        // pair lives on the jump row below with Undo. Verified on-device:
+        // nine in one row ellipsized "Ch 10/30" to "Ch ..." -- the
+        // ControlButton ellipsis canary remains the tripwire for drift.
         Row(modifier = Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(24.dp)) {
             CoverArt(
                 model = state.coverUrl ?: coverUrl,
@@ -156,13 +158,9 @@ fun PlayerScreen(
                             endOfChapter = state.sleepEndOfChapter && state.chapters.isNotEmpty(),
                             eocWaiting = state.sleepEocWaiting,
                         ),
-                        transport = TransportActions(
-                            onLongSkipBack = viewModel::skipBackLong,
-                            onSkipBack = viewModel::skipBack30,
-                            onPlayPause = viewModel::togglePlayPause,
-                            onSkipForward = viewModel::skipForward30,
-                            onLongSkipForward = viewModel::skipForwardLong,
-                        ),
+                        onSkipBack = viewModel::skipBack30,
+                        onPlayPause = viewModel::togglePlayPause,
+                        onSkipForward = viewModel::skipForward30,
                         onCycleSpeed = viewModel::openSpeedPanel,
                         onBookmark = viewModel::openBookmarkPanel,
                         onSleepTimer = viewModel::openSleepTimerPanel,
@@ -176,16 +174,14 @@ fun PlayerScreen(
                         },
                         colors = colors,
                     )
-                    state.undoSeekTargetSec?.let { undoTarget ->
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Row {
-                            ControlButton(
-                                label = "Undo seek to ${formatTimestampHms(undoTarget)}",
-                                onClick = viewModel::undoSeek,
-                                colors = colors,
-                            )
-                        }
-                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    JumpRow(
+                        onLongSkipBack = viewModel::skipBackLong,
+                        onLongSkipForward = viewModel::skipForwardLong,
+                        undoTargetSec = state.undoSeekTargetSec,
+                        onUndo = viewModel::undoSeek,
+                        colors = colors,
+                    )
                     state.error?.let { msg ->
                         Spacer(modifier = Modifier.height(12.dp))
                         Text(text = msg, color = colors.error, fontSize = 14.sp)
@@ -361,36 +357,28 @@ private fun BarTag(text: String, colors: androidx.tv.material3.ColorScheme) {
 /** The chapter affordance of the control row: its live counter label plus the picker opener. */
 private data class ChaptersControl(val label: String, val onOpen: () -> Unit)
 
-/** The five transport callbacks in row order, left of the utility cluster. */
-private data class TransportActions(
-    val onLongSkipBack: () -> Unit,
-    val onSkipBack: () -> Unit,
-    val onPlayPause: () -> Unit,
-    val onSkipForward: () -> Unit,
-    val onLongSkipForward: () -> Unit,
-)
-
 /**
- * Nine-control order, outermost to innermost around Play:
+ * Main control row:
  *
- *   « 5m | « 30 | Play | 30 » | 5m » | 1x | Sleep | Mark | Ch n/N
+ *   « 30 | Play | 30 » | 1x | Sleep | Mark | Ch n/N
  *
- * The transport cluster grows in magnitude outward from Play, matching the
- * reference players' muscle memory (bigger jump = further from center). The
- * utility cluster is ordered by frequency: speed and Sleep ahead of Mark
- * (critic: Mark is the rarer action), and the 1x slot deliberately sits
- * between "5m »" and the sleep button because an armed sleep timer's label
- * IS "5m"/"30m" -- adjacent, the pair would read as one confusing "5m » 5m".
- * Ch n/N stays last: it is the widest and most width-variable label, so at
- * the row's end its growth ("Ch 9/30" to "Ch 10/30") never shifts a
- * neighbour the user is about to press.
+ * The 30s pair hugs Play (locked primary increment); the utility cluster
+ * is ordered by frequency, Sleep ahead of Mark (critic: Mark is the rarer
+ * action). Ch n/N stays last: it is the widest and most width-variable
+ * label, so at the row's end its growth ("Ch 9/30" to "Ch 10/30") never
+ * shifts a neighbour the user is about to press. The 5m long-skip pair
+ * lives on [JumpRow] directly below -- nine controls were tried in this
+ * row and the Ch counter ellipsized on the TV device (488dp column, see the
+ * cover comment), which is why the long-skip pair lives on its own row.
  */
 @Composable
 private fun ControlRow(
     isPlaying: Boolean,
     speed: Float,
     sleepLabel: String,
-    transport: TransportActions,
+    onSkipBack: () -> Unit,
+    onPlayPause: () -> Unit,
+    onSkipForward: () -> Unit,
     onCycleSpeed: () -> Unit,
     onBookmark: () -> Unit,
     onSleepTimer: () -> Unit,
@@ -398,16 +386,14 @@ private fun ControlRow(
     colors: androidx.tv.material3.ColorScheme,
 ) {
     Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
-        ControlButton(label = "« 5m", onClick = transport.onLongSkipBack, colors = colors)
-        ControlButton(label = "« 30", onClick = transport.onSkipBack, colors = colors)
-        ControlButton(label = if (isPlaying) "Pause" else "Play", onClick = transport.onPlayPause, emphasised = true, colors = colors)
-        ControlButton(label = "30 »", onClick = transport.onSkipForward, colors = colors)
-        ControlButton(label = "5m »", onClick = transport.onLongSkipForward, colors = colors)
+        ControlButton(label = "« 30", onClick = onSkipBack, colors = colors)
+        ControlButton(label = if (isPlaying) "Pause" else "Play", onClick = onPlayPause, emphasised = true, colors = colors)
+        ControlButton(label = "30 »", onClick = onSkipForward, colors = colors)
         ControlButton(label = formatSpeed(speed), onClick = onCycleSpeed, colors = colors)
         ControlButton(label = sleepLabel, onClick = onSleepTimer, colors = colors)
         ControlButton(label = "Mark", onClick = onBookmark, colors = colors)
         // Null when the book has no chapter data: chapterless books keep the
-        // 8-button row. The label is the live "Ch n/N" counter, which both
+        // 6-button row. The label is the live "Ch n/N" counter, which both
         // answers "where am I" without opening the picker and is narrower
         // than the word "Chapters" that used to clip at the screen edge.
         // The ControlButton ellipsis canary still guards label drift.
@@ -418,10 +404,40 @@ private fun ControlRow(
 }
 
 /**
+ * The coarse-jump row under the transport: the labeled 5m long-skip pair
+ * (the dual-granularity add) plus Undo when there is a seek to undo.
+ * « 5m sits directly under « 30 so the two granularities column-align by
+ * direction -- back-jumps stacked left, forward-jumps stacked right. Undo
+ * comes last because it appears and disappears; at the row's end it never
+ * shifts the long-skip targets the user is aiming at.
+ */
+@Composable
+private fun JumpRow(
+    onLongSkipBack: () -> Unit,
+    onLongSkipForward: () -> Unit,
+    undoTargetSec: Long?,
+    onUndo: () -> Unit,
+    colors: androidx.tv.material3.ColorScheme,
+) {
+    Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
+        ControlButton(label = "« 5m", onClick = onLongSkipBack, colors = colors)
+        ControlButton(label = "5m »", onClick = onLongSkipForward, colors = colors)
+        if (undoTargetSec != null) {
+            ControlButton(
+                label = "Undo seek to ${formatTimestampHms(undoTargetSec)}",
+                onClick = onUndo,
+                colors = colors,
+            )
+        }
+    }
+}
+
+/**
  * Compact control button. tv Surface, not tv Button: Button enforces a
- * ~58dp minimum width, and nine of those (~554dp with spacing) overflow
- * the 608dp column under NeonLightning's monospace worst case. Surface
- * sizes to its label, which is what buys the nine-control single row.
+ * ~58dp minimum width, and seven of those plus spacing (~430dp) leave no
+ * headroom in the 488dp column for the worst-state labels (Pause, 1.75x,
+ * 59:59+, Ch 10/30). Surface sizes to its label, which is what keeps the
+ * seven-control main row plus the jump row inside the budget.
  */
 @Composable
 private fun ControlButton(
