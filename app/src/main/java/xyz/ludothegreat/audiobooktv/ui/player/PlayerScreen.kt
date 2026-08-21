@@ -38,6 +38,7 @@ import androidx.tv.material3.Text
 import coil3.compose.AsyncImage
 import xyz.ludothegreat.audiobooktv.R
 import xyz.ludothegreat.audiobooktv.data.abs.dto.AbsChapter
+import xyz.ludothegreat.audiobooktv.playback.BookProgress
 import xyz.ludothegreat.audiobooktv.playback.ChapterMath
 import xyz.ludothegreat.audiobooktv.playback.formatSleepLabel
 import xyz.ludothegreat.audiobooktv.playback.formatTimestampHms
@@ -131,7 +132,12 @@ fun PlayerScreen(
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                     }
-                    ProgressRow(positionSec = state.positionSec, durationSec = state.durationSec, colors = colors)
+                    ProgressRow(
+                        positionSec = state.positionSec,
+                        durationSec = state.durationSec,
+                        speed = state.speed,
+                        colors = colors,
+                    )
                     Spacer(modifier = Modifier.height(24.dp))
                     ControlRow(
                         isPlaying = state.isPlaying,
@@ -144,7 +150,7 @@ fun PlayerScreen(
                         onBookmark = viewModel::openBookmarkPanel,
                         onSleepTimer = viewModel::openSleepTimerPanel,
                         onChapters = if (state.chapters.isNotEmpty()) viewModel::openChapterPanel else null,
-                        chaptersLabel = chaptersButtonLabel(chapterIndex, state.chapters.size),
+                        chaptersLabel = ChapterMath.counterLabel(chapterIndex, state.chapters.size),
                         colors = colors,
                     )
                     state.undoSeekTargetSec?.let { undoTarget ->
@@ -252,9 +258,21 @@ private fun ChapterProgressRow(
     }
 }
 
+/**
+ * Book half of the dual position display. The right endpoint follows the
+ * chapter bar's convention: a speed-aware negative countdown plus the
+ * whole-book percent, instead of the static total duration. While duration
+ * is unknown the endpoint falls back to 0:00 rather than a fake countdown.
+ */
 @Composable
-private fun ProgressRow(positionSec: Long, durationSec: Long, colors: androidx.tv.material3.ColorScheme) {
+private fun ProgressRow(positionSec: Long, durationSec: Long, speed: Float, colors: androidx.tv.material3.ColorScheme) {
     val fraction = if (durationSec > 0) positionSec.toFloat() / durationSec.toFloat() else 0f
+    val endLabel = if (durationSec > 0) {
+        val remaining = BookProgress.remainingSecAtSpeed(positionSec, durationSec, speed)
+        "${ChapterMath.remainingLabel(remaining)} · ${BookProgress.percent(positionSec, durationSec)}%"
+    } else {
+        formatTimestampHms(0)
+    }
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text(text = formatTimestampHms(positionSec), color = colors.onSurfaceVariant, fontSize = 14.sp)
         Spacer(modifier = Modifier.width(12.dp))
@@ -272,7 +290,7 @@ private fun ProgressRow(positionSec: Long, durationSec: Long, colors: androidx.t
             )
         }
         Spacer(modifier = Modifier.width(12.dp))
-        Text(text = formatTimestampHms(durationSec), color = colors.onSurfaceVariant, fontSize = 14.sp)
+        Text(text = endLabel, color = colors.onSurfaceVariant, fontSize = 14.sp)
     }
 }
 
@@ -347,14 +365,6 @@ private fun ControlButton(
         )
     }
 }
-
-/**
- * Live position counter for the Chapters button. Between chapters (before
- * the first start or in a gap) the index is unknown, so the count alone
- * still tells the user how much structure the book has.
- */
-private fun chaptersButtonLabel(chapterIndex: Int?, chapterCount: Int): String =
-    if (chapterIndex != null) "Ch ${chapterIndex + 1}/$chapterCount" else "Ch -/$chapterCount"
 
 private fun formatSpeed(speed: Float): String {
     val s = if (speed % 1f == 0f) "%.0f".format(speed) else "%.2f".format(speed).trimEnd('0').trimEnd('.')

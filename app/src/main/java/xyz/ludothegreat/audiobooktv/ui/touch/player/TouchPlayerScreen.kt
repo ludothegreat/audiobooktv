@@ -60,6 +60,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import coil3.compose.AsyncImage
 import xyz.ludothegreat.audiobooktv.R
 import xyz.ludothegreat.audiobooktv.data.abs.dto.AbsChapter
+import xyz.ludothegreat.audiobooktv.playback.BookProgress
 import xyz.ludothegreat.audiobooktv.playback.ChapterMath
 import xyz.ludothegreat.audiobooktv.playback.formatSleepLabel
 import xyz.ludothegreat.audiobooktv.playback.formatTimestampHms
@@ -137,6 +138,7 @@ fun TouchPlayerScreen(
             ScrubberRow(
                 positionSec = state.positionSec,
                 durationSec = state.durationSec,
+                speed = state.speed,
                 onScrub = viewModel::seekToAbsoluteSec,
             )
 
@@ -152,6 +154,7 @@ fun TouchPlayerScreen(
                 sleepTimerMinutes = state.sleepTimerMinutes,
                 sleepTimerRemainingSec = state.sleepTimerRemainingSec,
                 showChapters = state.chapters.isNotEmpty(),
+                chaptersLabel = ChapterMath.counterLabel(chapterIndex, state.chapters.size),
                 undoAvailable = state.undoSeekTargetSec != null,
                 onSpeedClick = viewModel::openSpeedPanel,
                 onSleepClick = viewModel::openSleepTimerPanel,
@@ -353,7 +356,7 @@ private fun ChapterRow(title: String, positionSec: Long, chapter: AbsChapter, sp
 }
 
 @Composable
-private fun ScrubberRow(positionSec: Long, durationSec: Long, onScrub: (Long) -> Unit) {
+private fun ScrubberRow(positionSec: Long, durationSec: Long, speed: Float, onScrub: (Long) -> Unit) {
     val colors = MaterialTheme.colorScheme
     var dragging by remember { mutableStateOf(false) }
     var dragValueSec by remember { mutableStateOf(positionSec) }
@@ -397,8 +400,16 @@ private fun ScrubberRow(positionSec: Long, durationSec: Long, onScrub: (Long) ->
                 color = colors.onSurfaceVariant,
                 style = MaterialTheme.typography.labelMedium,
             )
+            // Same right-endpoint convention as the chapter bar and the TV
+            // book bar: speed-aware negative countdown plus book percent.
+            // A drag shows the countdown from the drag position live.
             Text(
-                text = formatTimestampHms(durationSec),
+                text = if (durationKnown) {
+                    val remaining = BookProgress.remainingSecAtSpeed(displaySec, durationSec, speed)
+                    "${ChapterMath.remainingLabel(remaining)} · ${BookProgress.percent(displaySec, durationSec)}%"
+                } else {
+                    formatTimestampHms(0)
+                },
                 color = colors.onSurfaceVariant,
                 style = MaterialTheme.typography.labelMedium,
             )
@@ -464,6 +475,7 @@ private fun SecondaryChips(
     sleepTimerMinutes: Int,
     sleepTimerRemainingSec: Long?,
     showChapters: Boolean,
+    chaptersLabel: String,
     undoAvailable: Boolean,
     onSpeedClick: () -> Unit,
     onSleepClick: () -> Unit,
@@ -489,7 +501,7 @@ private fun SecondaryChips(
         if (showChapters) {
             AssistChip(
                 onClick = onChaptersClick,
-                label = { Text(text = "Chapters") },
+                label = { Text(text = chaptersLabel) },
                 leadingIcon = {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.Toc,

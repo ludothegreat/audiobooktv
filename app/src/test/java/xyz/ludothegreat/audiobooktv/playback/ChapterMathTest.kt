@@ -139,4 +139,14 @@ class ChapterMathTest {
         assertEquals(0.0, ChapterMath.chapterDurationSec(chapter(0, 200.0, 100.0)), 1e-9)
         assertEquals(100.0, ChapterMath.chapterDurationSec(chapter(0, 100.0, 200.0)), 1e-9)
     }
+
+    @Test
+    fun `counter label shows position inside a chapter`() {
+        assertEquals("Ch 2/3", ChapterMath.counterLabel(chapterIndex = 1, chapterCount = 3))
+    }
+
+    @Test
+    fun `counter label degrades to count only between chapters`() {
+        assertEquals("Ch -/3", ChapterMath.counterLabel(chapterIndex = null, chapterCount = 3))
+    }
 }

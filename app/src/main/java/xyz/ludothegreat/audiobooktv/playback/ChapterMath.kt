@@ -58,6 +58,15 @@ object ChapterMath {
     fun remainingLabel(remainingSec: Long): String = "-" + formatTimestampHms(remainingSec)
 
     /**
+     * The "Ch n/N" position counter shown on the player controls of both
+     * surfaces. Between chapters (before the first start or in a gap) the
+     * index is unknown; the count alone still tells the user how much
+     * structure the book has.
+     */
+    fun counterLabel(chapterIndex: Int?, chapterCount: Int): String =
+        if (chapterIndex != null) "Ch ${chapterIndex + 1}/$chapterCount" else "Ch -/$chapterCount"
+
+    /**
      * Whole-second seek target for a chapter jump. Ceil, not truncate: ABS
      * chapter starts are fractional (496.256961), and truncating would land
      * the head 0.26s inside the previous chapter, so the title and bar would
