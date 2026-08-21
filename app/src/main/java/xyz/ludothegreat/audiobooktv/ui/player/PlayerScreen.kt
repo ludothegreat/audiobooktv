@@ -73,7 +73,11 @@ fun PlayerScreen(
             return@Box
         }
 
-        Row(modifier = Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(32.dp)) {
+        // Cover width and gap are sized around the control row: tv Button
+        // enforces a ~58dp minimum width, so six buttons plus the Ch counter
+        // need ~470dp in the worst case. 248dp of letterboxed cover plus a
+        // 24dp gap leaves 488dp of column inside the 40dp screen padding.
+        Row(modifier = Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(24.dp)) {
             CoverArt(
                 model = state.coverUrl ?: coverUrl,
                 contentDescription = state.title,
@@ -83,7 +87,7 @@ fun PlayerScreen(
                 initialsSize = 64.sp,
                 modifier = Modifier
                     .fillMaxHeight()
-                    .width(280.dp)
+                    .width(248.dp)
                     .clip(RoundedCornerShape(8.dp)),
             )
 
@@ -362,15 +366,17 @@ private fun ControlButton(
         modifier = Modifier.height(40.dp),
     ) {
         // softWrap=false + maxLines=1 forbid the half-word wrap we saw on
-        // the TV device once Play swapped to Pause. If a label is too long
-        // for the row, it ellipsizes -- visible enough to flag the layout
-        // problem instead of silently splitting "Sleep" into "Sle / ep".
+        // the TV device once Play swapped to Pause, and overflow=Ellipsis is
+        // the canary: without it the default is Clip, which cut "Ch 10/30"
+        // mid-glyph at the screen edge instead of flagging the layout
+        // problem with a visible "...".
         Text(
             text = label,
             fontSize = 16.sp,
             color = Color.Unspecified,
             maxLines = 1,
             softWrap = false,
+            overflow = TextOverflow.Ellipsis,
         )
     }
 }
