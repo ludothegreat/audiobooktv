@@ -275,7 +275,15 @@ class PlayerViewModel @Inject constructor(
         if (!controllerReady.value) {
             pendingLoad = itemId to coverUrl
             _state.update {
-                it.copy(loading = true, itemId = itemId, coverUrl = coverUrl, chapters = emptyList(), error = null)
+                it.copy(
+                    loading = true,
+                    itemId = itemId,
+                    coverUrl = coverUrl,
+                    positionSec = 0,
+                    durationSec = 0,
+                    chapters = emptyList(),
+                    error = null,
+                )
             }
             return
         }
@@ -290,11 +298,23 @@ class PlayerViewModel @Inject constructor(
         // If the timer was at 5 min remaining of a 30-min preset and the
         // user opens a different book, the next playback gets a fresh 30 min.
         sleepCountdown.setDuration(_state.value.sleepTimerMinutes)
-        // Clear the previous book's chapters for the whole load window --
-        // stale chapter data against the new book's positions would light up
-        // a wrong (or ghost) chapter bar until openPlayback returns.
+        // Clear the previous book's chapters AND position envelope for the
+        // whole load window. Stale chapter data against the new book's
+        // positions would light up a wrong (or ghost) chapter bar, and a
+        // stale durationSec is worse: a skip pressed mid-load would clamp
+        // against the previous book's duration and push a bogus position
+        // into the NEW session. Zeroing durationSec makes ScrubTargets.clamp
+        // null-drop every user seek until openPlayback delivers the truth.
         _state.update {
-            it.copy(loading = true, itemId = itemId, coverUrl = coverUrl, chapters = emptyList(), error = null)
+            it.copy(
+                loading = true,
+                itemId = itemId,
+                coverUrl = coverUrl,
+                positionSec = 0,
+                durationSec = 0,
+                chapters = emptyList(),
+                error = null,
+            )
         }
         viewModelScope.launch {
             runCatching { playbackRepository.openPlayback(itemId) }
@@ -368,26 +388,31 @@ class PlayerViewModel @Inject constructor(
         }
     }
 
-    // Skip handlers obey the position-is-server-truth invariant: each
-    // user-initiated seek must call pushPositionToServer so the pre-play
-    // refresh in togglePlayPause doesn't snap us back. Any new seek path
-    // added here MUST keep the pushPositionToServer call.
+    // Skip handlers ride userSeekTo, the single clamp-seek-push-record path.
+    // They used to seek and push directly, which left a hole the v1.2.1
+    // progress-wipe fix closed for scrubs but not for skips: with duration
+    // still unknown, SeekTargets.skipForward coerces to 0 and the push wipes
+    // the listener's server position. ScrubTargets.clamp inside userSeekTo
+    // null-drops any skip until durationSec > 0, and the push it does keep
+    // stops the pre-play refresh in togglePlayPause from snapping back.
     fun skipBack30() {
         val ctl = controller ?: return
-        val fromSec = absolutePositionSec(ctl)
-        val target = SeekTargets.skipBack(fromSec)
-        seekToAbsoluteMs(target * 1000)
-        pushPositionToServer(target.toDouble())
-        recordUserSeek(fromSec = fromSec, toSec = target, cause = SeekCause.Skip)
+        userSeekTo(SeekTargets.skipBack(absolutePositionSec(ctl)), SeekCause.Skip)
     }
 
     fun skipForward30() {
         val ctl = controller ?: return
-        val fromSec = absolutePositionSec(ctl)
-        val target = SeekTargets.skipForward(fromSec, _state.value.durationSec)
-        seekToAbsoluteMs(target * 1000)
-        pushPositionToServer(target.toDouble())
-        recordUserSeek(fromSec = fromSec, toSec = target, cause = SeekCause.Skip)
+        userSeekTo(SeekTargets.skipForward(absolutePositionSec(ctl), _state.value.durationSec), SeekCause.Skip)
+    }
+
+    fun skipBackLong() {
+        val ctl = controller ?: return
+        userSeekTo(SeekTargets.longSkipBack(absolutePositionSec(ctl)), SeekCause.LongSkip)
+    }
+
+    fun skipForwardLong() {
+        val ctl = controller ?: return
+        userSeekTo(SeekTargets.longSkipForward(absolutePositionSec(ctl), _state.value.durationSec), SeekCause.LongSkip)
     }
 
     /**
