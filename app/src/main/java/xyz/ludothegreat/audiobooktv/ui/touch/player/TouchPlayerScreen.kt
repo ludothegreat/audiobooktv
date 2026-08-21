@@ -14,7 +14,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -108,24 +108,34 @@ fun TouchPlayerScreen(
             .padding(horizontal = 24.dp, vertical = 16.dp),
     ) {
         Column(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            CoverArt(
-                model = state.coverUrl ?: coverUrl,
-                contentDescription = state.title,
-                title = state.title,
-                containerColor = colors.surfaceVariant,
-                contentColor = colors.onSurfaceVariant,
-                initialsSize = 64.sp,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .widthIn(max = 360.dp)
-                    .aspectRatio(1f)
-                    .align(Alignment.CenterHorizontally)
-                    .clip(RoundedCornerShape(12.dp)),
-            )
+            // The cover is the ONLY flexible element: it gets whatever height
+            // is left after the fixed stack below (metadata, chapter bar,
+            // scrubber, transport, chips) measures, because weighted children
+            // size last. The old chain sized the cover first and its
+            // fillMaxWidth().widthIn(max) cap was dead code (fillMaxWidth pins
+            // min = max, so widthIn cannot shrink it): on the foldable inner
+            // display that produced a full-width square cover which
+            // pushed the transport row and the chips clean off the bottom
+            // edge, measuring them at zero height.
+            Box(
+                modifier = Modifier.fillMaxWidth().weight(1f),
+                contentAlignment = Alignment.Center,
+            ) {
+                CoverArt(
+                    model = state.coverUrl ?: coverUrl,
+                    contentDescription = state.title,
+                    title = state.title,
+                    containerColor = colors.surfaceVariant,
+                    contentColor = colors.onSurfaceVariant,
+                    initialsSize = 64.sp,
+                    modifier = Modifier
+                        .sizeIn(maxWidth = 360.dp, maxHeight = 360.dp)
+                        .aspectRatio(1f)
+                        .clip(RoundedCornerShape(12.dp)),
+                )
+            }
 
             MetadataBlock(state = state)
-
-            Spacer(modifier = Modifier.weight(1f))
 
             val chapterIndex = ChapterMath.indexAt(state.positionSec.toDouble(), state.chapters)
             if (chapterIndex != null) {
