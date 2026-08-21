@@ -1,20 +1,24 @@
 package xyz.ludothegreat.audiobooktv.ui.touch.player
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Toc
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Forward30
 import androidx.compose.material.icons.filled.NightsStay
@@ -50,6 +54,8 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil3.compose.AsyncImage
 import xyz.ludothegreat.audiobooktv.R
+import xyz.ludothegreat.audiobooktv.data.abs.dto.AbsChapter
+import xyz.ludothegreat.audiobooktv.playback.ChapterMath
 import xyz.ludothegreat.audiobooktv.playback.formatSleepLabel
 import xyz.ludothegreat.audiobooktv.playback.formatTimestampHms
 import xyz.ludothegreat.audiobooktv.ui.player.PlayerUiState
@@ -110,6 +116,16 @@ fun TouchPlayerScreen(
 
             Spacer(modifier = Modifier.weight(1f))
 
+            val chapterIndex = ChapterMath.indexAt(state.positionSec.toDouble(), state.chapters)
+            if (chapterIndex != null) {
+                ChapterRow(
+                    title = state.chapterTitle.ifBlank { "Chapter ${chapterIndex + 1}" },
+                    positionSec = state.positionSec,
+                    chapter = state.chapters[chapterIndex],
+                    speed = state.speed,
+                )
+            }
+
             ScrubberRow(
                 positionSec = state.positionSec,
                 durationSec = state.durationSec,
@@ -127,13 +143,20 @@ fun TouchPlayerScreen(
                 speed = state.speed,
                 sleepTimerMinutes = state.sleepTimerMinutes,
                 sleepTimerRemainingSec = state.sleepTimerRemainingSec,
+                showChapters = state.chapters.isNotEmpty(),
                 onSpeedClick = viewModel::openSpeedPanel,
                 onSleepClick = viewModel::openSleepTimerPanel,
                 onBookmarkClick = viewModel::openBookmarkPanel,
+                onChaptersClick = viewModel::openChapterPanel,
             )
         }
     }
 
+    PlayerSheets(state = state, viewModel = viewModel)
+}
+
+@Composable
+private fun PlayerSheets(state: PlayerUiState, viewModel: PlayerViewModel) {
     if (state.speedPanelVisible) {
         TouchSpeedSheet(
             currentSpeed = state.speed,
@@ -152,6 +175,17 @@ fun TouchPlayerScreen(
                 viewModel.closeSleepTimerPanel()
             },
             onDismiss = viewModel::closeSleepTimerPanel,
+        )
+    }
+    if (state.chapterPanelVisible) {
+        TouchChapterSheet(
+            chapters = state.chapters,
+            currentIndex = ChapterMath.indexAt(state.positionSec.toDouble(), state.chapters),
+            onPick = { chapter ->
+                viewModel.jumpToChapter(chapter)
+                viewModel.closeChapterPanel()
+            },
+            onDismiss = viewModel::closeChapterPanel,
         )
     }
     if (state.bookmarkPanelVisible) {
@@ -207,19 +241,64 @@ private fun MetadataBlock(state: PlayerUiState) {
                 style = MaterialTheme.typography.bodyLarge,
             )
         }
-        if (state.chapterTitle.isNotBlank()) {
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = state.chapterTitle,
-                color = colors.primary,
-                style = MaterialTheme.typography.bodyMedium,
-            )
-        }
         if (state.isReconnecting) {
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = "Reconnecting...",
                 color = colors.error,
+                style = MaterialTheme.typography.labelMedium,
+            )
+        }
+    }
+}
+
+/**
+ * Chapter half of the dual position display: the current chapter title over
+ * a thin bar in the dim primary token (the scrubber's quieter sibling),
+ * elapsed-in-chapter on the left and the "-12:34" until-next-chapter
+ * countdown (at the playback rate) on the right. Only rendered while the
+ * head is inside a chapter, so chapterless books keep the plain
+ * scrubber-only layout.
+ */
+@Composable
+private fun ChapterRow(title: String, positionSec: Long, chapter: AbsChapter, speed: Float) {
+    val colors = MaterialTheme.colorScheme
+    val absSec = positionSec.toDouble()
+    Column {
+        Text(
+            text = title,
+            color = colors.primary,
+            style = MaterialTheme.typography.bodyMedium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Spacer(modifier = Modifier.height(6.dp))
+        Box(
+            modifier = Modifier
+                .height(4.dp)
+                .fillMaxWidth()
+                .background(colors.surfaceVariant, RoundedCornerShape(2.dp)),
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .fillMaxWidth(ChapterMath.progressFraction(absSec, chapter))
+                    .background(colors.primaryContainer, RoundedCornerShape(2.dp)),
+            )
+        }
+        Spacer(modifier = Modifier.height(4.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Text(
+                text = formatTimestampHms(ChapterMath.elapsedSec(absSec, chapter).toLong()),
+                color = colors.onSurfaceVariant,
+                style = MaterialTheme.typography.labelMedium,
+            )
+            Text(
+                text = ChapterMath.remainingLabel(ChapterMath.remainingSecAtSpeed(absSec, chapter, speed)),
+                color = colors.onSurfaceVariant,
                 style = MaterialTheme.typography.labelMedium,
             )
         }
@@ -337,18 +416,40 @@ private fun SecondaryChips(
     speed: Float,
     sleepTimerMinutes: Int,
     sleepTimerRemainingSec: Long?,
+    showChapters: Boolean,
     onSpeedClick: () -> Unit,
     onSleepClick: () -> Unit,
     onBookmarkClick: () -> Unit,
+    onChaptersClick: () -> Unit,
 ) {
     val sleepLabel = formatSleepLabel(
         selectedMinutes = sleepTimerMinutes,
         remainingSec = sleepTimerRemainingSec,
     )
+    // Four chips overflow a narrow phone (the foldable cover screen is ~370dp),
+    // so the row scrolls sideways. horizontalScroll only relaxes the max
+    // constraint: with three chips the layout is untouched and stays
+    // centered, exactly as it was before the Chapters chip existed.
     Row(
-        modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState())
+            .padding(top = 4.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
     ) {
+        if (showChapters) {
+            AssistChip(
+                onClick = onChaptersClick,
+                label = { Text(text = "Chapters") },
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.Toc,
+                        contentDescription = null,
+                        modifier = Modifier.size(AssistChipDefaults.IconSize),
+                    )
+                },
+            )
+        }
         AssistChip(
             onClick = onSpeedClick,
             label = { Text(text = "%.2fx".format(speed)) },
