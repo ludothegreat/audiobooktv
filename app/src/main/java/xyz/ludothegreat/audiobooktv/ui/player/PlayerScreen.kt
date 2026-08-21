@@ -58,7 +58,10 @@ fun PlayerScreen(
         }
     }
 
-    Box(modifier = Modifier.fillMaxSize().background(colors.background).padding(48.dp)) {
+    // 40dp keeps everything comfortably inside the TV action-safe area
+    // (48px at 1080p) while giving the 7-button control row the width it
+    // needs next to the cover.
+    Box(modifier = Modifier.fillMaxSize().background(colors.background).padding(40.dp)) {
         if (itemId.isNullOrBlank()) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text(
@@ -141,6 +144,7 @@ fun PlayerScreen(
                         onBookmark = viewModel::openBookmarkPanel,
                         onSleepTimer = viewModel::openSleepTimerPanel,
                         onChapters = if (state.chapters.isNotEmpty()) viewModel::openChapterPanel else null,
+                        chaptersLabel = chaptersButtonLabel(chapterIndex, state.chapters.size),
                         colors = colors,
                     )
                     state.undoSeekTargetSec?.let { undoTarget ->
@@ -284,9 +288,10 @@ private fun ControlRow(
     onBookmark: () -> Unit,
     onSleepTimer: () -> Unit,
     onChapters: (() -> Unit)?,
+    chaptersLabel: String,
     colors: androidx.tv.material3.ColorScheme,
 ) {
-    Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
         ControlButton(label = "« 30", onClick = onSkipBack, colors = colors)
         ControlButton(label = if (isPlaying) "Pause" else "Play", onClick = onPlayPause, emphasised = true, colors = colors)
         ControlButton(label = "30 »", onClick = onSkipForward, colors = colors)
@@ -294,10 +299,12 @@ private fun ControlRow(
         ControlButton(label = "Mark", onClick = onBookmark, colors = colors)
         ControlButton(label = sleepLabel, onClick = onSleepTimer, colors = colors)
         // Null when the book has no chapter data: chapterless books keep the
-        // exact 6-button row that already fits. The ControlButton ellipsis
-        // canary still guards the widest 7-button case.
+        // 6-button row. The label is the live "Ch n/N" counter, which both
+        // answers "where am I" without opening the picker and is narrower
+        // than the word "Chapters" that used to clip at the screen edge.
+        // The ControlButton ellipsis canary still guards label drift.
         if (onChapters != null) {
-            ControlButton(label = "Chapters", onClick = onChapters, colors = colors)
+            ControlButton(label = chaptersLabel, onClick = onChapters, colors = colors)
         }
     }
 }
@@ -324,7 +331,7 @@ private fun ControlButton(
                 shape = RoundedCornerShape(8.dp),
             ),
         ),
-        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
         modifier = Modifier.height(40.dp),
     ) {
         // softWrap=false + maxLines=1 forbid the half-word wrap we saw on
@@ -340,6 +347,14 @@ private fun ControlButton(
         )
     }
 }
+
+/**
+ * Live position counter for the Chapters button. Between chapters (before
+ * the first start or in a gap) the index is unknown, so the count alone
+ * still tells the user how much structure the book has.
+ */
+private fun chaptersButtonLabel(chapterIndex: Int?, chapterCount: Int): String =
+    if (chapterIndex != null) "Ch ${chapterIndex + 1}/$chapterCount" else "Ch -/$chapterCount"
 
 private fun formatSpeed(speed: Float): String {
     val s = if (speed % 1f == 0f) "%.0f".format(speed) else "%.2f".format(speed).trimEnd('0').trimEnd('.')
