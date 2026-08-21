@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -328,8 +329,13 @@ private fun RowActionButton(
         ),
         modifier = Modifier.height(48.dp),
     ) {
+        // fillMaxHeight only: a fillMaxSize content Box makes this width-less
+        // tv Surface expand to the Row's full remaining width. Weightless
+        // children measure first in a Row, so that one greedy button swallowed
+        // the whole row and the jump surface and Delete rendered at zero width
+        // (the wave-0 "bare Rename slabs" defect).
         Box(
-            modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp),
+            modifier = Modifier.fillMaxHeight().padding(horizontal = 12.dp),
             contentAlignment = Alignment.Center,
         ) {
             Text(text = label, fontSize = 14.sp, maxLines = 1, softWrap = false)
@@ -421,8 +427,10 @@ private fun EditorButton(
         ),
         modifier = Modifier.height(44.dp),
     ) {
+        // Same trap as RowActionButton: fillMaxSize here would let Save
+        // swallow the editor row and push Cancel out of existence.
         Box(
-            modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp),
+            modifier = Modifier.fillMaxHeight().padding(horizontal = 20.dp),
             contentAlignment = Alignment.Center,
         ) {
             Text(text = label, fontSize = 16.sp, maxLines = 1, softWrap = false)
