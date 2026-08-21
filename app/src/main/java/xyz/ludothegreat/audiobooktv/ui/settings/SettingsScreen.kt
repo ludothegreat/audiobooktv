@@ -200,9 +200,15 @@ private fun ThemeRow(
                 Button(
                     onClick = { onSelect(theme) },
                     shape = ButtonDefaults.shape(shape = RoundedCornerShape(8.dp)),
+                    // Same resting-vs-focused idiom as the nav pill and the
+                    // player's Play button: the selected theme rests one tone
+                    // down (primaryContainer) and only brightens to primary
+                    // together with the orange focus ring, so it cannot pose
+                    // as the focused control while the user is on the
+                    // switches above.
                     colors = ButtonDefaults.colors(
-                        containerColor = if (isSelected) colors.primary else colors.surface,
-                        contentColor = if (isSelected) colors.onPrimary else colors.onSurface,
+                        containerColor = if (isSelected) colors.primaryContainer else colors.surface,
+                        contentColor = if (isSelected) colors.onPrimaryContainer else colors.onSurface,
                         focusedContainerColor = if (isSelected) colors.primary else colors.surface,
                         focusedContentColor = if (isSelected) colors.onPrimary else colors.onSurface,
                     ),
