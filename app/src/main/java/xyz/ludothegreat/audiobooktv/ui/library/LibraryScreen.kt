@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -30,8 +31,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -108,6 +116,7 @@ private fun FilterHeader(
     onSegmentSelect: (StatusSegment) -> Unit,
 ) {
     val colors = MaterialTheme.colorScheme
+    val focusManager = LocalFocusManager.current
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -131,7 +140,33 @@ private fun FilterHeader(
                 focusedContainerColor = colors.surface,
                 unfocusedContainerColor = colors.surface,
             ),
-            modifier = Modifier.width(280.dp),
+            // A focused Compose TextField consumes every D-pad direction as
+            // an editor key, so once the search field had focus the chips and
+            // the grid were unreachable by remote (proven on the TV device:
+            // Right/Down/Up all dead-ended in the field). While the on-screen
+            // keyboard is up it eats the D-pad before the app sees it, so
+            // this preview handler only fires after the IME is dismissed;
+            // at that point every direction becomes a focus move. Cursor
+            // movement inside the query is still available through the IME's
+            // own arrow keys.
+            modifier = Modifier
+                .width(280.dp)
+                .onPreviewKeyEvent { event ->
+                    if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+                    val direction = when (event.key) {
+                        Key.DirectionRight -> FocusDirection.Right
+                        Key.DirectionLeft -> FocusDirection.Left
+                        Key.DirectionDown -> FocusDirection.Down
+                        Key.DirectionUp -> FocusDirection.Up
+                        else -> null
+                    }
+                    if (direction != null) {
+                        focusManager.moveFocus(direction)
+                        true
+                    } else {
+                        false
+                    }
+                },
         )
         StatusSegment.entries.forEach { candidate ->
             SegmentChip(
@@ -168,7 +203,13 @@ private fun SegmentChip(label: String, selected: Boolean, onClick: () -> Unit) {
         ),
         modifier = Modifier.height(36.dp),
     ) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        // fillMaxHeight only, never fillMaxSize: this width-less tv Surface
+        // sits in a bounded Row, where a fillMaxSize content Box makes the
+        // chip claim the row's whole remaining width. Weightless Row children
+        // measure in order, so the first chip (All) swallowed the row and
+        // New/Started/Finished rendered at zero width. Same trap as
+        // BookmarkPanel.RowActionButton (the wave-0 "Rename slabs" defect).
+        Box(modifier = Modifier.fillMaxHeight(), contentAlignment = Alignment.Center) {
             Text(
                 text = label,
                 fontSize = 14.sp,
