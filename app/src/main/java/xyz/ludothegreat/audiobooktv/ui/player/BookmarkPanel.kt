@@ -43,6 +43,7 @@ import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
 import kotlinx.coroutines.delay
 import xyz.ludothegreat.audiobooktv.domain.Bookmark
+import xyz.ludothegreat.audiobooktv.playback.BookmarkLabel
 import xyz.ludothegreat.audiobooktv.playback.formatTimestampHms
 import xyz.ludothegreat.audiobooktv.ui.common.DELETE_CONFIRM_WINDOW_MS
 import xyz.ludothegreat.audiobooktv.ui.common.dpadFocusEscape
@@ -280,11 +281,16 @@ private fun BookmarkRow(
                     fontSize = 16.sp,
                     modifier = Modifier.width(80.dp),
                 )
-                Text(
-                    text = bookmark.title.ifBlank { "-" },
-                    fontSize = 16.sp,
-                    maxLines = 1,
-                )
+                // Null for an unrenamed bookmark, whose title IS the
+                // timestamp: print the time once instead of twice.
+                val secondary = BookmarkLabel.secondary(bookmark.title, bookmark.timeSec, "-")
+                if (secondary != null) {
+                    Text(
+                        text = secondary,
+                        fontSize = 16.sp,
+                        maxLines = 1,
+                    )
+                }
             }
         }
         RowActionButton(

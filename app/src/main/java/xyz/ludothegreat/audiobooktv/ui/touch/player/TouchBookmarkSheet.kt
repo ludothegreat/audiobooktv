@@ -41,6 +41,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 import xyz.ludothegreat.audiobooktv.domain.Bookmark
+import xyz.ludothegreat.audiobooktv.playback.BookmarkLabel
 import xyz.ludothegreat.audiobooktv.playback.formatTimestampHms
 import xyz.ludothegreat.audiobooktv.ui.common.DELETE_CONFIRM_WINDOW_MS
 import xyz.ludothegreat.audiobooktv.ui.player.BookmarkNotice
@@ -193,12 +194,17 @@ private fun BookmarkRow(
                 color = colors.primary,
                 style = MaterialTheme.typography.labelLarge,
             )
-            Text(
-                text = bookmark.title.ifBlank { "(no label)" },
-                color = colors.onSurface,
-                style = MaterialTheme.typography.bodyLarge,
-                maxLines = 1,
-            )
+            // Null for an unrenamed bookmark, whose title IS the timestamp:
+            // print the time once instead of twice.
+            val secondary = BookmarkLabel.secondary(bookmark.title, bookmark.timeSec, "(no label)")
+            if (secondary != null) {
+                Text(
+                    text = secondary,
+                    color = colors.onSurface,
+                    style = MaterialTheme.typography.bodyLarge,
+                    maxLines = 1,
+                )
+            }
         }
         IconButton(onClick = onRenameRequest) {
             Icon(
