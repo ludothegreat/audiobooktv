@@ -5,7 +5,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -22,7 +21,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -30,9 +28,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.tv.material3.Border
-import androidx.tv.material3.Button
-import androidx.tv.material3.ButtonDefaults
+import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.MaterialTheme
+import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
 import xyz.ludothegreat.audiobooktv.R
 import xyz.ludothegreat.audiobooktv.data.abs.dto.AbsChapter
@@ -59,7 +57,7 @@ fun PlayerScreen(
     }
 
     // 40dp keeps everything comfortably inside the TV action-safe area
-    // (48px at 1080p) while giving the 7-button control row the width it
+    // (48px at 1080p) while giving the nine-control row the width it
     // needs next to the cover.
     Box(modifier = Modifier.fillMaxSize().background(colors.background).padding(40.dp)) {
         if (itemId.isNullOrBlank()) {
@@ -73,10 +71,14 @@ fun PlayerScreen(
             return@Box
         }
 
-        // Cover width and gap are sized around the control row: tv Button
-        // enforces a ~58dp minimum width, so six buttons plus the Ch counter
-        // need ~470dp in the worst case. 248dp of letterboxed cover plus a
-        // 24dp gap leaves 488dp of column inside the 40dp screen padding.
+        // Cover width and gap are sized around the control row. The TV device
+        // renders 1920x1080 at density 320, so the screen is 960dp wide and
+        // the column beside the 248dp cover and 24dp gap gets 608dp inside
+        // the 40dp screen padding. The nine compact Surface controls need
+        // ~525dp under Gruvbox and ~590dp worst-case under NeonLightning's
+        // monospace (59:59 countdown + 1.75x + Ch 10/30 all at once), so
+        // they fit on one row; the ControlButton ellipsis is the canary if
+        // a label ever outgrows that budget.
         Row(modifier = Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(24.dp)) {
             CoverArt(
                 model = state.coverUrl ?: coverUrl,
@@ -149,9 +151,13 @@ fun PlayerScreen(
                         isPlaying = state.isPlaying,
                         speed = state.speed,
                         sleepLabel = formatSleepLabel(state.sleepTimerMinutes, state.sleepTimerRemainingSec),
-                        onSkipBack = viewModel::skipBack30,
-                        onPlayPause = viewModel::togglePlayPause,
-                        onSkipForward = viewModel::skipForward30,
+                        transport = TransportActions(
+                            onLongSkipBack = viewModel::skipBackLong,
+                            onSkipBack = viewModel::skipBack30,
+                            onPlayPause = viewModel::togglePlayPause,
+                            onSkipForward = viewModel::skipForward30,
+                            onLongSkipForward = viewModel::skipForwardLong,
+                        ),
                         onCycleSpeed = viewModel::openSpeedPanel,
                         onBookmark = viewModel::openBookmarkPanel,
                         onSleepTimer = viewModel::openSleepTimerPanel,
@@ -347,14 +353,36 @@ private fun BarTag(text: String, colors: androidx.tv.material3.ColorScheme) {
 /** The chapter affordance of the control row: its live counter label plus the picker opener. */
 private data class ChaptersControl(val label: String, val onOpen: () -> Unit)
 
+/** The five transport callbacks in row order, left of the utility cluster. */
+private data class TransportActions(
+    val onLongSkipBack: () -> Unit,
+    val onSkipBack: () -> Unit,
+    val onPlayPause: () -> Unit,
+    val onSkipForward: () -> Unit,
+    val onLongSkipForward: () -> Unit,
+)
+
+/**
+ * Nine-control order, outermost to innermost around Play:
+ *
+ *   « 5m | « 30 | Play | 30 » | 5m » | 1x | Sleep | Mark | Ch n/N
+ *
+ * The transport cluster grows in magnitude outward from Play, matching the
+ * reference players' muscle memory (bigger jump = further from center). The
+ * utility cluster is ordered by frequency: speed and Sleep ahead of Mark
+ * (critic: Mark is the rarer action), and the 1x slot deliberately sits
+ * between "5m »" and the sleep button because an armed sleep timer's label
+ * IS "5m"/"30m" -- adjacent, the pair would read as one confusing "5m » 5m".
+ * Ch n/N stays last: it is the widest and most width-variable label, so at
+ * the row's end its growth ("Ch 9/30" to "Ch 10/30") never shifts a
+ * neighbour the user is about to press.
+ */
 @Composable
 private fun ControlRow(
     isPlaying: Boolean,
     speed: Float,
     sleepLabel: String,
-    onSkipBack: () -> Unit,
-    onPlayPause: () -> Unit,
-    onSkipForward: () -> Unit,
+    transport: TransportActions,
     onCycleSpeed: () -> Unit,
     onBookmark: () -> Unit,
     onSleepTimer: () -> Unit,
@@ -362,14 +390,16 @@ private fun ControlRow(
     colors: androidx.tv.material3.ColorScheme,
 ) {
     Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
-        ControlButton(label = "« 30", onClick = onSkipBack, colors = colors)
-        ControlButton(label = if (isPlaying) "Pause" else "Play", onClick = onPlayPause, emphasised = true, colors = colors)
-        ControlButton(label = "30 »", onClick = onSkipForward, colors = colors)
+        ControlButton(label = "« 5m", onClick = transport.onLongSkipBack, colors = colors)
+        ControlButton(label = "« 30", onClick = transport.onSkipBack, colors = colors)
+        ControlButton(label = if (isPlaying) "Pause" else "Play", onClick = transport.onPlayPause, emphasised = true, colors = colors)
+        ControlButton(label = "30 »", onClick = transport.onSkipForward, colors = colors)
+        ControlButton(label = "5m »", onClick = transport.onLongSkipForward, colors = colors)
         ControlButton(label = formatSpeed(speed), onClick = onCycleSpeed, colors = colors)
-        ControlButton(label = "Mark", onClick = onBookmark, colors = colors)
         ControlButton(label = sleepLabel, onClick = onSleepTimer, colors = colors)
+        ControlButton(label = "Mark", onClick = onBookmark, colors = colors)
         // Null when the book has no chapter data: chapterless books keep the
-        // 6-button row. The label is the live "Ch n/N" counter, which both
+        // 8-button row. The label is the live "Ch n/N" counter, which both
         // answers "where am I" without opening the picker and is narrower
         // than the word "Chapters" that used to clip at the screen edge.
         // The ControlButton ellipsis canary still guards label drift.
@@ -379,6 +409,12 @@ private fun ControlRow(
     }
 }
 
+/**
+ * Compact control button. tv Surface, not tv Button: Button enforces a
+ * ~58dp minimum width, and nine of those (~554dp with spacing) overflow
+ * the 608dp column under NeonLightning's monospace worst case. Surface
+ * sizes to its label, which is what buys the nine-control single row.
+ */
 @Composable
 private fun ControlButton(
     label: String,
@@ -386,37 +422,45 @@ private fun ControlButton(
     colors: androidx.tv.material3.ColorScheme,
     emphasised: Boolean = false,
 ) {
-    Button(
+    Surface(
         onClick = onClick,
-        shape = ButtonDefaults.shape(shape = RoundedCornerShape(8.dp)),
-        colors = ButtonDefaults.colors(
+        shape = ClickableSurfaceDefaults.shape(shape = RoundedCornerShape(8.dp)),
+        colors = ClickableSurfaceDefaults.colors(
             containerColor = if (emphasised) colors.primary else colors.surface,
             contentColor = if (emphasised) colors.onPrimary else colors.onSurface,
             focusedContainerColor = if (emphasised) colors.primary else colors.surface,
             focusedContentColor = if (emphasised) colors.onPrimary else colors.onSurface,
         ),
-        border = ButtonDefaults.border(
+        border = ClickableSurfaceDefaults.border(
             focusedBorder = Border(
                 border = BorderStroke(2.dp, colors.secondary),
                 shape = RoundedCornerShape(8.dp),
             ),
         ),
-        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
         modifier = Modifier.height(40.dp),
     ) {
-        // softWrap=false + maxLines=1 forbid the half-word wrap we saw on
-        // the TV device once Play swapped to Pause, and overflow=Ellipsis is
-        // the canary: without it the default is Clip, which cut "Ch 10/30"
-        // mid-glyph at the screen edge instead of flagging the layout
-        // problem with a visible "...".
-        Text(
-            text = label,
-            fontSize = 16.sp,
-            color = Color.Unspecified,
-            maxLines = 1,
-            softWrap = false,
-            overflow = TextOverflow.Ellipsis,
-        )
+        // fillMaxHeight only, never fillMaxSize: this width-less tv Surface
+        // sits in a bounded Row, where a fillMaxSize content Box makes the
+        // first button claim the row's whole remaining width and render its
+        // siblings at zero width (the wave-0 "Rename slabs" trap, see
+        // BookmarkPanel.RowActionButton and LibraryScreen.SegmentChip).
+        Box(
+            modifier = Modifier.fillMaxHeight().padding(horizontal = 8.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            // softWrap=false + maxLines=1 forbid the half-word wrap we saw on
+            // the TV device once Play swapped to Pause, and overflow=Ellipsis is
+            // the canary: without it the default is Clip, which cut "Ch 10/30"
+            // mid-glyph at the screen edge instead of flagging the layout
+            // problem with a visible "...".
+            Text(
+                text = label,
+                fontSize = 16.sp,
+                maxLines = 1,
+                softWrap = false,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
     }
 }
 
