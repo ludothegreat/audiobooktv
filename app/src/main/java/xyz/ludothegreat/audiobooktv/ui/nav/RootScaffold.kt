@@ -70,7 +70,10 @@ fun RootScaffold(viewModel: RootViewModel = hiltViewModel()) {
                 .fillMaxHeight()
                 .width(120.dp)
                 .background(MaterialTheme.colorScheme.surfaceVariant)
-                .padding(PaddingValues(start = 16.dp, top = 24.dp, bottom = 24.dp)),
+                // End padding matters: without it the pill runs flat into the
+                // rail's right edge and reads as clipped against the content
+                // area, which has a different background.
+                .padding(PaddingValues(start = 16.dp, end = 12.dp, top = 24.dp, bottom = 24.dp)),
         )
         Box(modifier = Modifier.fillMaxSize()) {
             when (selected) {
@@ -103,7 +106,7 @@ private fun NavRail(
             Button(
                 onClick = { onSelect(dest) },
                 shape = ButtonDefaults.shape(
-                    shape = RoundedCornerShape(topStart = 8.dp, bottomStart = 8.dp),
+                    shape = RoundedCornerShape(8.dp),
                 ),
                 colors = if (isSelected) {
                     ButtonDefaults.colors(
@@ -123,7 +126,7 @@ private fun NavRail(
                 border = ButtonDefaults.border(
                     focusedBorder = Border(
                         border = BorderStroke(2.dp, MaterialTheme.colorScheme.secondary),
-                        shape = RoundedCornerShape(topStart = 8.dp, bottomStart = 8.dp),
+                        shape = RoundedCornerShape(8.dp),
                     ),
                 ),
                 modifier = Modifier.fillMaxWidth().height(36.dp),
