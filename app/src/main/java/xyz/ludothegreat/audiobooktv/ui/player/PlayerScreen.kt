@@ -36,6 +36,7 @@ import xyz.ludothegreat.audiobooktv.R
 import xyz.ludothegreat.audiobooktv.data.abs.dto.AbsChapter
 import xyz.ludothegreat.audiobooktv.playback.BookProgress
 import xyz.ludothegreat.audiobooktv.playback.ChapterMath
+import xyz.ludothegreat.audiobooktv.playback.SeekTargets
 import xyz.ludothegreat.audiobooktv.playback.formatSleepLabel
 import xyz.ludothegreat.audiobooktv.playback.formatTimestampHms
 import xyz.ludothegreat.audiobooktv.ui.common.CoverArt
@@ -360,8 +361,11 @@ private data class ChaptersControl(val label: String, val onOpen: () -> Unit)
 /**
  * Main control row:
  *
- *   « 30 | Play | 30 » | 1x | Sleep | Mark | Ch n/N
+ *   «30s | Play | 30s» | 1x | Sleep | Mark | Ch n/N
  *
+ * Skip labels come from SkipLabels over the SeekTargets constants, so the
+ * text carries the same value-plus-unit pattern as the 5m jump row and can
+ * never drift from the seek performed.
  * The 30s pair hugs Play (locked primary increment); the utility cluster
  * is ordered by frequency, Sleep ahead of Mark (critic: Mark is the rarer
  * action). Ch n/N stays last: it is the widest and most width-variable
@@ -386,9 +390,9 @@ private fun ControlRow(
     colors: androidx.tv.material3.ColorScheme,
 ) {
     Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
-        ControlButton(label = "« 30", onClick = onSkipBack, colors = colors)
+        ControlButton(label = SkipLabels.back(SeekTargets.SKIP_SECONDS), onClick = onSkipBack, colors = colors)
         ControlButton(label = if (isPlaying) "Pause" else "Play", onClick = onPlayPause, emphasised = true, colors = colors)
-        ControlButton(label = "30 »", onClick = onSkipForward, colors = colors)
+        ControlButton(label = SkipLabels.forward(SeekTargets.SKIP_SECONDS), onClick = onSkipForward, colors = colors)
         ControlButton(label = formatSpeed(speed), onClick = onCycleSpeed, colors = colors)
         ControlButton(label = sleepLabel, onClick = onSleepTimer, colors = colors)
         ControlButton(label = "Mark", onClick = onBookmark, colors = colors)
@@ -420,8 +424,8 @@ private fun JumpRow(
     colors: androidx.tv.material3.ColorScheme,
 ) {
     Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
-        ControlButton(label = "« 5m", onClick = onLongSkipBack, colors = colors)
-        ControlButton(label = "5m »", onClick = onLongSkipForward, colors = colors)
+        ControlButton(label = SkipLabels.back(SeekTargets.LONG_SKIP_SECONDS), onClick = onLongSkipBack, colors = colors)
+        ControlButton(label = SkipLabels.forward(SeekTargets.LONG_SKIP_SECONDS), onClick = onLongSkipForward, colors = colors)
         if (undoTargetSec != null) {
             ControlButton(
                 label = "Undo seek to ${formatTimestampHms(undoTargetSec)}",

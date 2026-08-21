@@ -28,11 +28,10 @@ import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.FastForward
 import androidx.compose.material.icons.filled.FastRewind
-import androidx.compose.material.icons.filled.Forward30
 import androidx.compose.material.icons.filled.NightsStay
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Replay30
+import androidx.compose.material.icons.filled.Replay
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
@@ -58,9 +57,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -69,11 +71,13 @@ import xyz.ludothegreat.audiobooktv.R
 import xyz.ludothegreat.audiobooktv.data.abs.dto.AbsChapter
 import xyz.ludothegreat.audiobooktv.playback.BookProgress
 import xyz.ludothegreat.audiobooktv.playback.ChapterMath
+import xyz.ludothegreat.audiobooktv.playback.SeekTargets
 import xyz.ludothegreat.audiobooktv.playback.formatSleepLabel
 import xyz.ludothegreat.audiobooktv.playback.formatTimestampHms
 import xyz.ludothegreat.audiobooktv.ui.common.CoverArt
 import xyz.ludothegreat.audiobooktv.ui.player.PlayerUiState
 import xyz.ludothegreat.audiobooktv.ui.player.PlayerViewModel
+import xyz.ludothegreat.audiobooktv.ui.player.SkipLabels
 
 /**
  * Touch player. Shares PlayerViewModel with the TV surface (decision: one
@@ -551,12 +555,14 @@ private fun ScrubberRow(
 
 /**
  * Transport row, magnitudes growing outward from Play like the TV row:
- * 5m, 30s, Play, 30s, 5m. Long-skip buttons are labeled "5m" because the
- * Material Replay/Forward glyph family only mints 5/10/30 second variants
- * and a bare Replay5 icon would promise seconds, not minutes. 12dp
- * spacing (down from 24dp with three buttons) plus the 44dp long-skip
- * targets keep the five-button row inside the foldable cover screen's ~330dp
- * of usable width.
+ * 5m, 30s, Play, 30s, 5m. Every skip control shares one pattern: glyph on
+ * top, value-plus-unit tag from SkipLabels underneath ("30s", "5m"), the
+ * same text pattern the TV rows use. The 30s pair wears the un-numbered
+ * Replay glyph (mirrored for forward) instead of Replay30/Forward30, so
+ * the only quantity on the button is the labeled one; the old in-glyph
+ * "30" carried no unit, which is exactly the inconsistency this fixes.
+ * 12dp spacing plus the 44dp long-skip targets keep the five-button row
+ * inside the foldable cover screen's ~330dp of usable width.
  */
 @Composable
 private fun PrimaryControls(
@@ -573,22 +579,24 @@ private fun PrimaryControls(
         horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        LongSkipButton(
-            forward = false,
+        SkipButton(
+            icon = Icons.Filled.FastRewind,
+            mirror = false,
+            label = SkipLabels.amount(SeekTargets.LONG_SKIP_SECONDS),
             contentDescription = "Skip back 5 minutes",
+            buttonSize = 44.dp,
+            iconSize = 20.dp,
             onClick = onLongSkipBack,
         )
-        IconButton(
+        SkipButton(
+            icon = Icons.Filled.Replay,
+            mirror = false,
+            label = SkipLabels.amount(SeekTargets.SKIP_SECONDS),
+            contentDescription = "Skip back 30 seconds",
+            buttonSize = 56.dp,
+            iconSize = 28.dp,
             onClick = onSkipBack,
-            modifier = Modifier.size(56.dp),
-        ) {
-            Icon(
-                imageVector = Icons.Filled.Replay30,
-                contentDescription = "Skip back 30 seconds",
-                tint = colors.onBackground,
-                modifier = Modifier.size(36.dp),
-            )
-        }
+        )
         FilledIconButton(
             onClick = onPlayPause,
             modifier = Modifier.size(72.dp),
@@ -603,50 +611,61 @@ private fun PrimaryControls(
                 modifier = Modifier.size(40.dp),
             )
         }
-        IconButton(
+        SkipButton(
+            icon = Icons.Filled.Replay,
+            mirror = true,
+            label = SkipLabels.amount(SeekTargets.SKIP_SECONDS),
+            contentDescription = "Skip forward 30 seconds",
+            buttonSize = 56.dp,
+            iconSize = 28.dp,
             onClick = onSkipForward,
-            modifier = Modifier.size(56.dp),
-        ) {
-            Icon(
-                imageVector = Icons.Filled.Forward30,
-                contentDescription = "Skip forward 30 seconds",
-                tint = colors.onBackground,
-                modifier = Modifier.size(36.dp),
-            )
-        }
-        LongSkipButton(
-            forward = true,
+        )
+        SkipButton(
+            icon = Icons.Filled.FastForward,
+            mirror = false,
+            label = SkipLabels.amount(SeekTargets.LONG_SKIP_SECONDS),
             contentDescription = "Skip forward 5 minutes",
+            buttonSize = 44.dp,
+            iconSize = 20.dp,
             onClick = onLongSkipForward,
         )
     }
 }
 
 /**
- * A labeled long-skip control: fast-rewind/forward glyph over a "5m" tag,
- * sized under the 30s pair so the visual hierarchy matches the jump
- * hierarchy (5m outermost and smallest emphasis, Play largest).
+ * One skip control shape for every magnitude: glyph over a unit tag. The
+ * Material set has no un-numbered forward-replay glyph, so the forward 30s
+ * button mirrors Replay horizontally ([mirror]); the arc reads clockwise,
+ * which is the forward cue. Sizes scale with magnitude (Play largest, 30s
+ * next, 5m outermost and smallest) so the visual hierarchy still matches
+ * the jump hierarchy.
  */
 @Composable
-private fun LongSkipButton(
-    forward: Boolean,
+private fun SkipButton(
+    icon: ImageVector,
+    mirror: Boolean,
+    label: String,
     contentDescription: String,
+    buttonSize: Dp,
+    iconSize: Dp,
     onClick: () -> Unit,
 ) {
     val colors = MaterialTheme.colorScheme
     IconButton(
         onClick = onClick,
-        modifier = Modifier.size(44.dp),
+        modifier = Modifier.size(buttonSize),
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Icon(
-                imageVector = if (forward) Icons.Filled.FastForward else Icons.Filled.FastRewind,
+                imageVector = icon,
                 contentDescription = contentDescription,
                 tint = colors.onBackground,
-                modifier = Modifier.size(22.dp),
+                modifier = Modifier
+                    .size(iconSize)
+                    .scale(scaleX = if (mirror) -1f else 1f, scaleY = 1f),
             )
             Text(
-                text = "5m",
+                text = label,
                 color = colors.onSurfaceVariant,
                 fontSize = 10.sp,
                 maxLines = 1,
