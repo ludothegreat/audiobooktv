@@ -461,17 +461,20 @@ private fun ChapterRow(title: String, positionSec: Long, chapter: AbsChapter, sp
 }
 
 /**
- * Tiny muted tag naming which bar is which, shown only while both bars are
- * on screen (the chapter row's presence is what makes the pairing
+ * Muted tag naming which bar is which, shown only while both bars are on
+ * screen (the chapter row's presence is what makes the pairing
  * ambiguous). Sits inline with the under-bar timestamps so it costs no
- * vertical space.
+ * vertical space. 11sp + medium weight instead of the original 9sp: the
+ * tag was the smallest text on the screen and dropped out first at a
+ * glance. Still a step under the timestamps and in the muted tone.
  */
 @Composable
 private fun BarTag(text: String) {
     Text(
         text = text,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
-        fontSize = 9.sp,
+        fontSize = 11.sp,
+        fontWeight = FontWeight.Medium,
         letterSpacing = 1.2.sp,
         maxLines = 1,
     )

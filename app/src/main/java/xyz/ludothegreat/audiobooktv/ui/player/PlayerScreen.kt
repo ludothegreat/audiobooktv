@@ -336,22 +336,26 @@ private fun ProgressRow(
 }
 
 /**
- * Tiny muted tag naming which bar is which. Fixed width so the CHAPTER and
- * BOOK rows keep their timestamps and bars column-aligned; sized well under
- * the muted timestamps so it labels the pairing without crowding the row.
- * The ellipsis is the canary if a future tag outgrows the column.
+ * Muted tag naming which bar is which. Fixed width so the CHAPTER and
+ * BOOK rows keep their timestamps and bars column-aligned. 12sp with a
+ * medium weight: the original 10sp was the smallest text on the screen
+ * and the first thing to drop out at 3 metres. Still subordinate to the
+ * 14sp timestamps by staying a size down and in the muted tone; weight
+ * and size carry the contrast lift, not a brighter color. The ellipsis
+ * is the canary if a future tag outgrows the column.
  */
 @Composable
 private fun BarTag(text: String, colors: androidx.tv.material3.ColorScheme) {
     Text(
         text = text,
         color = colors.onSurfaceVariant,
-        fontSize = 10.sp,
+        fontSize = 12.sp,
+        fontWeight = FontWeight.Medium,
         letterSpacing = 1.5.sp,
         maxLines = 1,
         softWrap = false,
         overflow = TextOverflow.Ellipsis,
-        modifier = Modifier.width(68.dp),
+        modifier = Modifier.width(78.dp),
     )
 }
 
