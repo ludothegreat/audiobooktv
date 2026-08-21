@@ -1,6 +1,10 @@
 package xyz.ludothegreat.audiobooktv.ui.touch.player
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -16,6 +20,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Toc
@@ -59,6 +64,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import kotlinx.coroutines.delay
 import xyz.ludothegreat.audiobooktv.R
 import xyz.ludothegreat.audiobooktv.data.abs.dto.AbsChapter
 import xyz.ludothegreat.audiobooktv.playback.BookProgress
@@ -123,17 +129,10 @@ fun TouchPlayerScreen(
                 modifier = Modifier.fillMaxWidth().weight(1f),
                 contentAlignment = Alignment.Center,
             ) {
-                CoverArt(
-                    model = state.coverUrl ?: coverUrl,
-                    contentDescription = state.title,
-                    title = state.title,
-                    containerColor = colors.surfaceVariant,
-                    contentColor = colors.onSurfaceVariant,
-                    initialsSize = 64.sp,
-                    modifier = Modifier
-                        .sizeIn(maxWidth = 360.dp, maxHeight = 360.dp)
-                        .aspectRatio(1f)
-                        .clip(RoundedCornerShape(12.dp)),
+                CoverPlayToggle(
+                    state = state,
+                    fallbackCoverUrl = coverUrl,
+                    onToggle = viewModel::togglePlayPause,
                 )
             }
 
@@ -292,6 +291,78 @@ private fun EmptyPlayer(onOpenLibrary: () -> Unit) {
             )
             Spacer(modifier = Modifier.height(12.dp))
             AssistChip(onClick = onOpenLibrary, label = { Text(text = stringResource(R.string.nav_library)) })
+        }
+    }
+}
+
+/**
+ * The cover doubles as the biggest play/pause target on the screen -- the
+ * eyes-free tap the category's reference apps are loved for. A tap toggles
+ * playback through the same togglePlayPause path as the transport button
+ * (pre-play server refresh included) and flashes a short scrim-circle
+ * acknowledgement showing the action taken, because the audible result can
+ * lag the tap by a beat while the position refresh runs. The scrubber and
+ * chip targets around it are untouched.
+ */
+@Composable
+private fun CoverPlayToggle(
+    state: PlayerUiState,
+    fallbackCoverUrl: String?,
+    onToggle: () -> Unit,
+) {
+    val colors = MaterialTheme.colorScheme
+    // ackPlaying records the action ISSUED (true = play requested), not the
+    // eventual player state: togglePlayPause resolves asynchronously after
+    // its pre-play server check, and the acknowledgement must not wait.
+    var ackPlaying by remember { mutableStateOf<Boolean?>(null) }
+    var ackSeq by remember { mutableStateOf(0) }
+    LaunchedEffect(ackSeq) {
+        if (ackSeq > 0) {
+            delay(COVER_ACK_MS)
+            ackPlaying = null
+        }
+    }
+    Box(
+        modifier = Modifier
+            .sizeIn(maxWidth = 360.dp, maxHeight = 360.dp)
+            .aspectRatio(1f)
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(onClickLabel = if (state.isPlaying) "Pause" else "Play") {
+                ackPlaying = !state.isPlaying
+                ackSeq++
+                onToggle()
+            },
+        contentAlignment = Alignment.Center,
+    ) {
+        CoverArt(
+            model = state.coverUrl ?: fallbackCoverUrl,
+            contentDescription = state.title,
+            title = state.title,
+            containerColor = colors.surfaceVariant,
+            contentColor = colors.onSurfaceVariant,
+            initialsSize = 64.sp,
+            modifier = Modifier.fillMaxSize(),
+        )
+        AnimatedVisibility(
+            visible = ackPlaying != null,
+            enter = fadeIn(),
+            exit = fadeOut(),
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(88.dp)
+                    .background(colors.background.copy(alpha = 0.65f), CircleShape),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = if (ackPlaying == true) Icons.Filled.PlayArrow else Icons.Filled.Pause,
+                    // The clickable's onClickLabel already announces the
+                    // action; a second description here would double-speak.
+                    contentDescription = null,
+                    tint = colors.onBackground,
+                    modifier = Modifier.size(48.dp),
+                )
+            }
         }
     }
 }
@@ -673,3 +744,4 @@ private fun SecondaryChips(
 }
 
 private const val NOTICE_FRESH_MS = 5_000L
+private const val COVER_ACK_MS = 650L
