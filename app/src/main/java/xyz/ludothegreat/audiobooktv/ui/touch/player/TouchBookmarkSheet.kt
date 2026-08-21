@@ -30,6 +30,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -38,8 +39,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.delay
 import xyz.ludothegreat.audiobooktv.domain.Bookmark
 import xyz.ludothegreat.audiobooktv.playback.formatTimestampHms
+import xyz.ludothegreat.audiobooktv.ui.common.DELETE_CONFIRM_WINDOW_MS
 import xyz.ludothegreat.audiobooktv.ui.player.BookmarkNotice
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -156,6 +159,20 @@ private fun BookmarkRow(
     onDelete: () -> Unit,
 ) {
     val colors = MaterialTheme.colorScheme
+    // Two-step delete, mirroring the TV panel's two-press confirm: the trash
+    // can sits one finger-width from the jump target, a deleted bookmark's
+    // custom title is unrecoverable, and the server API cannot undo it. The
+    // first tap arms the row ("Sure?" in the error colour), the second tap
+    // inside the shared window deletes, and the armed state disarms itself so
+    // a stale row cannot fire minutes later. Keyed on timeSec so a list
+    // change (jump, add, another delete) resets the armed state.
+    var confirmingDelete by remember(bookmark.timeSec) { mutableStateOf(false) }
+    LaunchedEffect(confirmingDelete) {
+        if (confirmingDelete) {
+            delay(DELETE_CONFIRM_WINDOW_MS)
+            confirmingDelete = false
+        }
+    }
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -190,12 +207,22 @@ private fun BookmarkRow(
                 tint = colors.onSurfaceVariant,
             )
         }
-        IconButton(onClick = onDelete) {
-            Icon(
-                imageVector = Icons.Filled.Delete,
-                contentDescription = "Delete bookmark",
-                tint = colors.error,
-            )
+        if (confirmingDelete) {
+            TextButton(onClick = onDelete) {
+                Text(
+                    text = "Sure?",
+                    color = colors.error,
+                    style = MaterialTheme.typography.labelLarge,
+                )
+            }
+        } else {
+            IconButton(onClick = { confirmingDelete = true }) {
+                Icon(
+                    imageVector = Icons.Filled.Delete,
+                    contentDescription = "Delete bookmark",
+                    tint = colors.error,
+                )
+            }
         }
     }
 }

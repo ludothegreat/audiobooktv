@@ -43,8 +43,7 @@ import androidx.tv.material3.Text
 import kotlinx.coroutines.delay
 import xyz.ludothegreat.audiobooktv.domain.Bookmark
 import xyz.ludothegreat.audiobooktv.playback.formatTimestampHms
-
-private const val DELETE_CONFIRM_WINDOW_MS = 3_000L
+import xyz.ludothegreat.audiobooktv.ui.common.DELETE_CONFIRM_WINDOW_MS
 
 @Composable
 fun BookmarkPanel(
