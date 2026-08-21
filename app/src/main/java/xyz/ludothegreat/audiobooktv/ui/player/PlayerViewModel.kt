@@ -38,6 +38,8 @@ import xyz.ludothegreat.audiobooktv.playback.PlayerService
 import xyz.ludothegreat.audiobooktv.playback.PositionMath
 import xyz.ludothegreat.audiobooktv.playback.RetryPolicy
 import xyz.ludothegreat.audiobooktv.playback.ScrubTargets
+import xyz.ludothegreat.audiobooktv.playback.SeekCause
+import xyz.ludothegreat.audiobooktv.playback.SeekHistory
 import xyz.ludothegreat.audiobooktv.playback.SeekTargets
 import xyz.ludothegreat.audiobooktv.playback.SleepCountdown
 import xyz.ludothegreat.audiobooktv.playback.formatTimestampHms
@@ -65,6 +67,30 @@ data class PlayerUiState(
     /** Live countdown remaining in seconds, or null when no timer is ticking. */
     val sleepTimerRemainingSec: Long? = null,
     val sleepTimerPanelVisible: Boolean = false,
+    /** Where undoSeek() would take the player, or null when there is nothing to undo. */
+    val undoSeekTargetSec: Long? = null,
+    /** Transient per-seek notice for the touch snackbar; TV shows the undo row instead. */
+    val seekNotice: SeekNotice? = null,
+    /** Transient outcome of the last bookmark rename/delete for snackbar/panel display. */
+    val bookmarkNotice: BookmarkNotice? = null,
+)
+
+/**
+ * seq makes each notice distinct so a LaunchedEffect keyed on it re-fires for
+ * every seek; atMs lets the UI drop a notice that is stale by the time the
+ * screen re-enters composition (tab switches replay the latest state).
+ */
+data class SeekNotice(
+    val seq: Long,
+    val toSec: Long,
+    val atMs: Long,
+)
+
+data class BookmarkNotice(
+    val seq: Long,
+    val text: String,
+    val isError: Boolean,
+    val atMs: Long,
 )
 
 val SPEED_PRESETS: List<Float> = listOf(0.75f, 1.0f, 1.25f, 1.5f, 1.75f, 2.0f)
@@ -100,6 +126,8 @@ class PlayerViewModel @Inject constructor(
     private var retryJob: Job? = null
     private var firstErrorWallClockMs: Long = 0
     private var lastSyncWallClockMs: Long = 0
+    private val seekHistory = SeekHistory()
+    private var noticeSeq: Long = 0
 
     private val sleepCountdown = SleepCountdown(
         scope = viewModelScope,
@@ -230,6 +258,11 @@ class PlayerViewModel @Inject constructor(
             refreshFromServer(itemId)
             return
         }
+        // Loading a different book invalidates the seek history: a fromSec
+        // from another book is a plausible-looking position here, and undoing
+        // to it would push a bogus seek to the server.
+        seekHistory.clear()
+        _state.update { it.copy(undoSeekTargetSec = null) }
         if (!controllerReady.value) {
             pendingLoad = itemId to coverUrl
             _state.update { it.copy(loading = true, itemId = itemId, coverUrl = coverUrl, error = null) }
@@ -324,16 +357,20 @@ class PlayerViewModel @Inject constructor(
     // added here MUST keep the pushPositionToServer call.
     fun skipBack30() {
         val ctl = controller ?: return
-        val target = SeekTargets.skipBack(absolutePositionSec(ctl))
+        val fromSec = absolutePositionSec(ctl)
+        val target = SeekTargets.skipBack(fromSec)
         seekToAbsoluteMs(target * 1000)
         pushPositionToServer(target.toDouble())
+        recordUserSeek(fromSec = fromSec, toSec = target, cause = SeekCause.Skip)
     }
 
     fun skipForward30() {
         val ctl = controller ?: return
-        val target = SeekTargets.skipForward(absolutePositionSec(ctl), _state.value.durationSec)
+        val fromSec = absolutePositionSec(ctl)
+        val target = SeekTargets.skipForward(fromSec, _state.value.durationSec)
         seekToAbsoluteMs(target * 1000)
         pushPositionToServer(target.toDouble())
+        recordUserSeek(fromSec = fromSec, toSec = target, cause = SeekCause.Skip)
     }
 
     /**
@@ -343,11 +380,27 @@ class PlayerViewModel @Inject constructor(
      * refresh doesn't yank us back. TV UI does not call this (no scrubber).
      */
     fun seekToAbsoluteSec(seconds: Long) {
-        if (controller == null) return
+        userSeekTo(seconds, SeekCause.Scrub)
+    }
+
+    /**
+     * Undo the last user seek by seeking back to where it came from. This is
+     * itself a normal user seek through the clamp-seek-push path, recorded in
+     * the history like any other, which is exactly what makes a second press
+     * redo (see SeekHistory).
+     */
+    fun undoSeek() {
+        val record = seekHistory.peekUndo() ?: return
+        userSeekTo(record.fromSec, SeekCause.Undo)
+    }
+
+    private fun userSeekTo(seconds: Long, cause: SeekCause) {
+        val ctl = controller ?: return
         // null = duration not known yet. Dropping the seek is the whole point:
         // falling through would push position 0 to the server.
         val target = ScrubTargets.clamp(targetSec = seconds, durationSec = _state.value.durationSec)
             ?: return
+        val fromSec = absolutePositionSec(ctl)
         seekToAbsoluteMs(target * 1000)
         _state.update {
             it.copy(
@@ -356,6 +409,18 @@ class PlayerViewModel @Inject constructor(
             )
         }
         pushPositionToServer(target.toDouble())
+        recordUserSeek(fromSec = fromSec, toSec = target, cause = cause)
+    }
+
+    private fun recordUserSeek(fromSec: Long, toSec: Long, cause: SeekCause) {
+        val now = System.currentTimeMillis()
+        if (!seekHistory.record(fromSec = fromSec, toSec = toSec, cause = cause, atMs = now)) return
+        _state.update {
+            it.copy(
+                undoSeekTargetSec = seekHistory.peekUndo()?.fromSec,
+                seekNotice = SeekNotice(seq = ++noticeSeq, toSec = toSec, atMs = now),
+            )
+        }
     }
 
     fun setSpeed(speed: Float) {
@@ -394,7 +459,9 @@ class PlayerViewModel @Inject constructor(
 
     fun openBookmarkPanel() {
         val id = _state.value.itemId ?: return
-        _state.update { it.copy(bookmarkPanelVisible = true, bookmarksLoading = true) }
+        // A notice from the previous open would otherwise reappear as a
+        // stale error line in the panel.
+        _state.update { it.copy(bookmarkPanelVisible = true, bookmarksLoading = true, bookmarkNotice = null) }
         viewModelScope.launch {
             val items = BookmarkList.normalize(bookmarksRepository.fetchForItem(id))
             _state.update { it.copy(bookmarks = items, bookmarksLoading = false) }
@@ -421,6 +488,11 @@ class PlayerViewModel @Inject constructor(
     fun jumpToBookmark(bookmark: Bookmark) {
         // Also a user-initiated seek -- push to server so togglePlayPause's
         // pre-play refresh doesn't pull us back to the prior position.
+        // The controller guard matters: without it a jump before the player
+        // binds would skip the local seek but still push the bookmark
+        // position to the server.
+        val ctl = controller ?: return
+        val fromSec = absolutePositionSec(ctl)
         seekToAbsoluteMs(bookmark.timeSec * 1000)
         _state.update {
             it.copy(
@@ -429,7 +501,69 @@ class PlayerViewModel @Inject constructor(
             )
         }
         pushPositionToServer(bookmark.timeSec.toDouble())
+        recordUserSeek(fromSec = fromSec, toSec = bookmark.timeSec, cause = SeekCause.BookmarkJump)
     }
+
+    /**
+     * Server first, then local state through the normalizer. On failure the
+     * list is left exactly as it was and the user is told loudly; quietly
+     * showing a rename that the server never saw would be a lie that survives
+     * until the next fetch.
+     */
+    fun renameBookmark(bookmark: Bookmark, newTitle: String) {
+        val id = _state.value.itemId ?: return
+        val trimmed = newTitle.trim()
+        if (trimmed.isEmpty() || trimmed == bookmark.title) return
+        viewModelScope.launch {
+            bookmarksRepository.rename(itemId = id, timeSec = bookmark.timeSec, title = trimmed)
+                .onSuccess { renamed ->
+                    _state.update {
+                        it.copy(
+                            bookmarks = BookmarkList.normalize(
+                                it.bookmarks.map { b -> if (BookmarkList.sameBookmark(b, renamed)) renamed else b },
+                            ),
+                            bookmarkNotice = bookmarkNotice("Bookmark renamed", isError = false),
+                        )
+                    }
+                }
+                .onFailure { t ->
+                    diagnosticLog.w("Player", "Bookmark rename failed: ${t.message}", t)
+                    _state.update {
+                        it.copy(bookmarkNotice = bookmarkNotice("Rename failed, bookmark unchanged", isError = true))
+                    }
+                }
+        }
+    }
+
+    fun deleteBookmark(bookmark: Bookmark) {
+        val id = _state.value.itemId ?: return
+        viewModelScope.launch {
+            bookmarksRepository.delete(itemId = id, timeSec = bookmark.timeSec)
+                .onSuccess {
+                    _state.update {
+                        it.copy(
+                            bookmarks = BookmarkList.normalize(
+                                it.bookmarks.filterNot { b -> BookmarkList.sameBookmark(b, bookmark) },
+                            ),
+                            bookmarkNotice = bookmarkNotice("Bookmark deleted", isError = false),
+                        )
+                    }
+                }
+                .onFailure { t ->
+                    diagnosticLog.w("Player", "Bookmark delete failed: ${t.message}", t)
+                    _state.update {
+                        it.copy(bookmarkNotice = bookmarkNotice("Delete failed, bookmark kept", isError = true))
+                    }
+                }
+        }
+    }
+
+    private fun bookmarkNotice(text: String, isError: Boolean) = BookmarkNotice(
+        seq = ++noticeSeq,
+        text = text,
+        isError = isError,
+        atMs = System.currentTimeMillis(),
+    )
 
     /**
      * User-initiated seek: tell the server this is our new position so the
