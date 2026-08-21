@@ -21,6 +21,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Toc
 import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.FastForward
+import androidx.compose.material.icons.filled.FastRewind
 import androidx.compose.material.icons.filled.Forward30
 import androidx.compose.material.icons.filled.NightsStay
 import androidx.compose.material.icons.filled.Pause
@@ -157,9 +159,11 @@ fun TouchPlayerScreen(
 
             PrimaryControls(
                 isPlaying = state.isPlaying,
+                onLongSkipBack = viewModel::skipBackLong,
                 onSkipBack = viewModel::skipBack30,
                 onPlayPause = viewModel::togglePlayPause,
                 onSkipForward = viewModel::skipForward30,
+                onLongSkipForward = viewModel::skipForwardLong,
             )
 
             SecondaryChips(
@@ -467,19 +471,35 @@ private fun ScrubberRow(
     }
 }
 
+/**
+ * Transport row, magnitudes growing outward from Play like the TV row:
+ * 5m, 30s, Play, 30s, 5m. Long-skip buttons are labeled "5m" because the
+ * Material Replay/Forward glyph family only mints 5/10/30 second variants
+ * and a bare Replay5 icon would promise seconds, not minutes. 12dp
+ * spacing (down from 24dp with three buttons) plus the 44dp long-skip
+ * targets keep the five-button row inside the foldable cover screen's ~330dp
+ * of usable width.
+ */
 @Composable
 private fun PrimaryControls(
     isPlaying: Boolean,
+    onLongSkipBack: () -> Unit,
     onSkipBack: () -> Unit,
     onPlayPause: () -> Unit,
     onSkipForward: () -> Unit,
+    onLongSkipForward: () -> Unit,
 ) {
     val colors = MaterialTheme.colorScheme
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(24.dp, Alignment.CenterHorizontally),
+        horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        LongSkipButton(
+            forward = false,
+            contentDescription = "Skip back 5 minutes",
+            onClick = onLongSkipBack,
+        )
         IconButton(
             onClick = onSkipBack,
             modifier = Modifier.size(56.dp),
@@ -514,6 +534,44 @@ private fun PrimaryControls(
                 contentDescription = "Skip forward 30 seconds",
                 tint = colors.onBackground,
                 modifier = Modifier.size(36.dp),
+            )
+        }
+        LongSkipButton(
+            forward = true,
+            contentDescription = "Skip forward 5 minutes",
+            onClick = onLongSkipForward,
+        )
+    }
+}
+
+/**
+ * A labeled long-skip control: fast-rewind/forward glyph over a "5m" tag,
+ * sized under the 30s pair so the visual hierarchy matches the jump
+ * hierarchy (5m outermost and smallest emphasis, Play largest).
+ */
+@Composable
+private fun LongSkipButton(
+    forward: Boolean,
+    contentDescription: String,
+    onClick: () -> Unit,
+) {
+    val colors = MaterialTheme.colorScheme
+    IconButton(
+        onClick = onClick,
+        modifier = Modifier.size(44.dp),
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Icon(
+                imageVector = if (forward) Icons.Filled.FastForward else Icons.Filled.FastRewind,
+                contentDescription = contentDescription,
+                tint = colors.onBackground,
+                modifier = Modifier.size(22.dp),
+            )
+            Text(
+                text = "5m",
+                color = colors.onSurfaceVariant,
+                fontSize = 10.sp,
+                maxLines = 1,
             )
         }
     }
