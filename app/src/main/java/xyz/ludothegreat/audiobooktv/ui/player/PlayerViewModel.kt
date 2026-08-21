@@ -523,22 +523,11 @@ class PlayerViewModel @Inject constructor(
     }
 
     fun jumpToBookmark(bookmark: Bookmark) {
-        // Also a user-initiated seek -- push to server so togglePlayPause's
-        // pre-play refresh doesn't pull us back to the prior position.
-        // The controller guard matters: without it a jump before the player
-        // binds would skip the local seek but still push the bookmark
-        // position to the server.
-        val ctl = controller ?: return
-        val fromSec = absolutePositionSec(ctl)
-        seekToAbsoluteMs(bookmark.timeSec * 1000)
-        _state.update {
-            it.copy(
-                positionSec = bookmark.timeSec,
-                chapterTitle = currentChapterTitle(bookmark.timeSec.toDouble()),
-            )
-        }
-        pushPositionToServer(bookmark.timeSec.toDouble())
-        recordUserSeek(fromSec = fromSec, toSec = bookmark.timeSec, cause = SeekCause.BookmarkJump)
+        // Also a user-initiated seek: userSeekTo supplies the controller
+        // guard, the nullable clamp (dropping the jump while duration is
+        // unknown instead of pushing a position the player never reached),
+        // the server push, and the history record.
+        userSeekTo(bookmark.timeSec, SeekCause.BookmarkJump)
     }
 
     /**
