@@ -425,9 +425,15 @@ private fun ControlButton(
     Surface(
         onClick = onClick,
         shape = ClickableSurfaceDefaults.shape(shape = RoundedCornerShape(8.dp)),
+        // Resting-primary vs focused: an emphasised control at rest wears the
+        // dim primaryContainer tone; the full primary fill lights up only
+        // together with the orange focus ring. Without the split, Play and
+        // the selected nav pill were both bright accent pills whenever focus
+        // sat elsewhere, and a viewer at 10 feet saw two "active" controls.
+        // The ring stays the focus indicator; tone is the disambiguator.
         colors = ClickableSurfaceDefaults.colors(
-            containerColor = if (emphasised) colors.primary else colors.surface,
-            contentColor = if (emphasised) colors.onPrimary else colors.onSurface,
+            containerColor = if (emphasised) colors.primaryContainer else colors.surface,
+            contentColor = if (emphasised) colors.onPrimaryContainer else colors.onSurface,
             focusedContainerColor = if (emphasised) colors.primary else colors.surface,
             focusedContentColor = if (emphasised) colors.onPrimary else colors.onSurface,
         ),

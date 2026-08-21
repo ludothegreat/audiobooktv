@@ -165,9 +165,14 @@ private fun SegmentChip(label: String, selected: Boolean, onClick: () -> Unit) {
     Surface(
         onClick = onClick,
         shape = ClickableSurfaceDefaults.shape(shape = RoundedCornerShape(18.dp)),
+        // Selected chip rests in the dim primaryContainer tone; the full
+        // primary fill is reserved for focus (plus the orange ring). While
+        // the user browses the grid the selected segment stays readable as
+        // "the active filter" without competing with the focused card --
+        // same resting-vs-focused idiom as the nav pill and Play button.
         colors = ClickableSurfaceDefaults.colors(
-            containerColor = if (selected) colors.primary else colors.surface,
-            contentColor = if (selected) colors.onPrimary else colors.onSurface,
+            containerColor = if (selected) colors.primaryContainer else colors.surface,
+            contentColor = if (selected) colors.onPrimaryContainer else colors.onSurface,
             focusedContainerColor = if (selected) colors.primary else colors.surface,
             focusedContentColor = if (selected) colors.onPrimary else colors.onSurface,
         ),

@@ -108,10 +108,16 @@ private fun NavRail(
                 shape = ButtonDefaults.shape(
                     shape = RoundedCornerShape(8.dp),
                 ),
+                // Selected pill rests in the dim primaryContainer tone and
+                // only takes the full primary fill together with the orange
+                // focus ring, so it can never be mistaken for the focused
+                // control while the user is off in the content area (the
+                // "two lit pills" critic deduction; same treatment as the
+                // player's Play button and the library's segment chips).
                 colors = if (isSelected) {
                     ButtonDefaults.colors(
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor = MaterialTheme.colorScheme.onPrimary,
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
                         focusedContainerColor = MaterialTheme.colorScheme.primary,
                         focusedContentColor = MaterialTheme.colorScheme.onPrimary,
                     )
