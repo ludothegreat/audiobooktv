@@ -19,7 +19,18 @@ data class LibraryUiState(
     val books: List<Book> = emptyList(),
     val offline: Boolean = false,
     val error: String? = null,
-)
+    val query: String = "",
+    val segment: StatusSegment = StatusSegment.ALL,
+) {
+    /**
+     * Derived on read instead of stored so every update site (refresh,
+     * cache fallback, query, segment) stays in sync by construction.
+     * [books] keeps LibrarySorter's full ordering; the filter preserves it
+     * within the segment.
+     */
+    val visibleBooks: List<Book>
+        get() = LibraryFilter.apply(books, query, segment)
+}
 
 @HiltViewModel
 class LibraryViewModel @Inject constructor(
@@ -50,6 +61,14 @@ class LibraryViewModel @Inject constructor(
             }
             refresh()
         }
+    }
+
+    fun onQueryChange(query: String) {
+        _state.update { it.copy(query = query) }
+    }
+
+    fun onSegmentSelect(segment: StatusSegment) {
+        _state.update { it.copy(segment = segment) }
     }
 
     fun refresh() {
