@@ -659,7 +659,11 @@ class PlayerViewModel @Inject constructor(
             // flag too, so no automatic pause of any kind survives an
             // explicit Off. The eoc collector disarms the gate on the
             // emission.
-            if (minutes == 0) appSettings.setSleepEndOfChapter(false)
+            // Any explicit preset choice resets the mode to plain minutes.
+            // Combining is then an opt-in on the subordinate toggle, so the
+            // three modes (minutes / chapter end / minutes-then-chapter-end)
+            // are never ambiguous in the picker.
+            appSettings.setSleepEndOfChapter(false)
         }
         // observeSleepTimerPreset() will re-apply the duration on the
         // DataStore emission. Resume eagerly if currently playing so the
@@ -674,6 +678,19 @@ class PlayerViewModel @Inject constructor(
         // The DataStore emission drives arming/disarming in one place
         // (observeSleepTimerPreset's eoc collector).
         viewModelScope.launch { appSettings.setSleepEndOfChapter(enabled) }
+    }
+
+    /**
+     * Pick end-of-chapter as its own exclusive mode: no minutes floor, stop
+     * at the next boundary. Clearing the preset is what makes the picker
+     * show exactly one selected row; leaving a stale preset selected next to
+     * it is what made a working feature read as broken.
+     */
+    fun selectSleepEndOfChapterOnly() {
+        viewModelScope.launch {
+            appSettings.setSleepTimerMinutes(0)
+            appSettings.setSleepEndOfChapter(true)
+        }
     }
 
     fun openChapterPanel() {
