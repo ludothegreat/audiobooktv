@@ -98,12 +98,6 @@ fun PlayerScreen(
                         color = colors.onSurfaceVariant,
                         fontSize = 18.sp,
                     )
-                    Spacer(modifier = Modifier.height(24.dp))
-                    Text(
-                        text = state.chapterTitle.ifBlank { "" },
-                        color = colors.primary,
-                        fontSize = 18.sp,
-                    )
                     if (state.isReconnecting) {
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(
@@ -116,6 +110,16 @@ fun PlayerScreen(
 
                 Column {
                     if (chapterIndex != null) {
+                        // The VM keeps chapterTitle in step with playback; the
+                        // numbered fallback covers ABS chapters with no title.
+                        Text(
+                            text = state.chapterTitle.ifBlank { "Chapter ${chapterIndex + 1}" },
+                            color = colors.primary,
+                            fontSize = 18.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
                         ChapterProgressRow(
                             positionSec = state.positionSec,
                             chapter = state.chapters[chapterIndex],
@@ -235,7 +239,7 @@ private fun ChapterProgressRow(
 private fun ProgressRow(positionSec: Long, durationSec: Long, colors: androidx.tv.material3.ColorScheme) {
     val fraction = if (durationSec > 0) positionSec.toFloat() / durationSec.toFloat() else 0f
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Text(text = formatTime(positionSec), color = colors.onSurfaceVariant, fontSize = 14.sp)
+        Text(text = formatTimestampHms(positionSec), color = colors.onSurfaceVariant, fontSize = 14.sp)
         Spacer(modifier = Modifier.width(12.dp))
         Box(
             modifier = Modifier
@@ -251,7 +255,7 @@ private fun ProgressRow(positionSec: Long, durationSec: Long, colors: androidx.t
             )
         }
         Spacer(modifier = Modifier.width(12.dp))
-        Text(text = formatTime(durationSec), color = colors.onSurfaceVariant, fontSize = 14.sp)
+        Text(text = formatTimestampHms(durationSec), color = colors.onSurfaceVariant, fontSize = 14.sp)
     }
 }
 
@@ -322,14 +326,6 @@ private fun ControlButton(
             softWrap = false,
         )
     }
-}
-
-private fun formatTime(seconds: Long): String {
-    if (seconds < 0) return "0:00"
-    val h = seconds / 3600
-    val m = (seconds % 3600) / 60
-    val s = seconds % 60
-    return if (h > 0) "%d:%02d:%02d".format(h, m, s) else "%d:%02d".format(m, s)
 }
 
 private fun formatSpeed(speed: Float): String {

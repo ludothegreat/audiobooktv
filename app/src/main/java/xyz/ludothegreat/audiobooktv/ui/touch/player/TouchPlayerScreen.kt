@@ -119,6 +119,7 @@ fun TouchPlayerScreen(
             val chapterIndex = ChapterMath.indexAt(state.positionSec.toDouble(), state.chapters)
             if (chapterIndex != null) {
                 ChapterRow(
+                    title = state.chapterTitle.ifBlank { "Chapter ${chapterIndex + 1}" },
                     positionSec = state.positionSec,
                     chapter = state.chapters[chapterIndex],
                     speed = state.speed,
@@ -240,14 +241,6 @@ private fun MetadataBlock(state: PlayerUiState) {
                 style = MaterialTheme.typography.bodyLarge,
             )
         }
-        if (state.chapterTitle.isNotBlank()) {
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = state.chapterTitle,
-                color = colors.primary,
-                style = MaterialTheme.typography.bodyMedium,
-            )
-        }
         if (state.isReconnecting) {
             Spacer(modifier = Modifier.height(8.dp))
             Text(
@@ -260,18 +253,26 @@ private fun MetadataBlock(state: PlayerUiState) {
 }
 
 /**
- * Chapter half of the dual position display: a thin bar in the dim primary
- * token (the scrubber's quieter sibling; the chapter title itself already
- * sits in the metadata block), elapsed-in-chapter on the left and the
- * "-12:34" until-next-chapter countdown (at the playback rate) on the
- * right. Only rendered while the head is inside a chapter, so chapterless
- * books keep the plain scrubber-only layout.
+ * Chapter half of the dual position display: the current chapter title over
+ * a thin bar in the dim primary token (the scrubber's quieter sibling),
+ * elapsed-in-chapter on the left and the "-12:34" until-next-chapter
+ * countdown (at the playback rate) on the right. Only rendered while the
+ * head is inside a chapter, so chapterless books keep the plain
+ * scrubber-only layout.
  */
 @Composable
-private fun ChapterRow(positionSec: Long, chapter: AbsChapter, speed: Float) {
+private fun ChapterRow(title: String, positionSec: Long, chapter: AbsChapter, speed: Float) {
     val colors = MaterialTheme.colorScheme
     val absSec = positionSec.toDouble()
     Column {
+        Text(
+            text = title,
+            color = colors.primary,
+            style = MaterialTheme.typography.bodyMedium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Spacer(modifier = Modifier.height(6.dp))
         Box(
             modifier = Modifier
                 .height(4.dp)
