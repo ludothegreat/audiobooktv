@@ -106,12 +106,19 @@ fun PlayerScreen(
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                     )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = state.author,
-                        color = colors.onSurfaceVariant,
-                        fontSize = 18.sp,
-                    )
+                    // Untagged books have no author (ABS sends "" and the
+                    // edge normalizes it away). Title-only, like the touch
+                    // surface and the cards: never parse an author out of
+                    // the raw title string, and never hold a blank line
+                    // open for a value that does not exist.
+                    if (state.author.isNotBlank()) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = state.author,
+                            color = colors.onSurfaceVariant,
+                            fontSize = 18.sp,
+                        )
+                    }
                     if (state.isReconnecting) {
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(
