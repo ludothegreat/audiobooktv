@@ -1,6 +1,7 @@
 package xyz.ludothegreat.audiobooktv.ui.library
 
 import xyz.ludothegreat.audiobooktv.domain.metadataField
+import kotlin.math.roundToInt
 
 /**
  * Pure text/geometry logic for the library cards on both surfaces. All of
@@ -8,6 +9,15 @@ import xyz.ludothegreat.audiobooktv.domain.metadataField
  * Android types, so CardMetaTest can lock it down on the JVM.
  */
 internal object CardMeta {
+
+    /**
+     * The caption meta row split into its two slots. The author ellipsizes
+     * inside a flexible slot; the duration renders at intrinsic width in a
+     * rigid slot, so a long author name can never truncate "16h 27m" down
+     * to "16h 2...". Joining both into one string is what made truncation
+     * possible; keep them apart.
+     */
+    data class MetaParts(val author: String?, val duration: String?)
 
     /**
      * Total length as "11h 51m" / "42m". Rounded to the nearest minute with
@@ -25,16 +35,31 @@ internal object CardMeta {
     }
 
     /**
-     * The card's muted metadata line: author and total duration from the
-     * item metadata fields, joined with a middle dot. Never parsed out of a
-     * joined display-name string; a missing field is simply omitted (show
-     * what exists, no guessing), and null drops the whole line.
+     * The card's muted metadata row: author and total duration from the
+     * item metadata fields. Never parsed out of a joined display-name
+     * string; a missing field is simply omitted (show what exists, no
+     * guessing), and null drops the whole row.
      */
-    fun metaLine(author: String?, durationSec: Long): String? {
-        val parts = listOfNotNull(metadataField(author), durationLabel(durationSec))
-        return if (parts.isEmpty()) null else parts.joinToString(" · ")
+    fun metaParts(author: String?, durationSec: Long): MetaParts? {
+        val authorPart = metadataField(author)
+        val durationPart = durationLabel(durationSec)
+        if (authorPart == null && durationPart == null) return null
+        return MetaParts(authorPart, durationPart)
     }
 
     /** Cover-bar fill fraction; server fractions outside 0..1 are clamped. */
     fun barFraction(progressFraction: Double): Float = progressFraction.toFloat().coerceIn(0f, 1f)
+
+    /**
+     * Explicit progress value for STARTED covers, from the same cached
+     * fraction the bar uses. Clamped into 1..99: a STARTED card must never
+     * claim "0%" (that is NEW's story) or "100%" (that is the finished
+     * badge's), even when rounding lands there. Null outside (0, 1)
+     * because those cards are NEW or FINISHED and carry no percent at all.
+     */
+    fun percentLabel(progressFraction: Double): String? {
+        if (progressFraction <= 0.0 || progressFraction >= 1.0) return null
+        val percent = (progressFraction * 100).roundToInt().coerceIn(1, 99)
+        return "$percent%"
+    }
 }

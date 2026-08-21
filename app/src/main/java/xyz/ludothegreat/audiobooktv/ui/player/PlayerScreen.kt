@@ -36,6 +36,7 @@ import xyz.ludothegreat.audiobooktv.R
 import xyz.ludothegreat.audiobooktv.data.abs.dto.AbsChapter
 import xyz.ludothegreat.audiobooktv.playback.BookProgress
 import xyz.ludothegreat.audiobooktv.playback.ChapterMath
+import xyz.ludothegreat.audiobooktv.playback.SeekTargets
 import xyz.ludothegreat.audiobooktv.playback.formatSleepLabel
 import xyz.ludothegreat.audiobooktv.playback.formatTimestampHms
 import xyz.ludothegreat.audiobooktv.ui.common.CoverArt
@@ -105,12 +106,19 @@ fun PlayerScreen(
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                     )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = state.author,
-                        color = colors.onSurfaceVariant,
-                        fontSize = 18.sp,
-                    )
+                    // Untagged books have no author (ABS sends "" and the
+                    // edge normalizes it away). Title-only, like the touch
+                    // surface and the cards: never parse an author out of
+                    // the raw title string, and never hold a blank line
+                    // open for a value that does not exist.
+                    if (state.author.isNotBlank()) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = state.author,
+                            color = colors.onSurfaceVariant,
+                            fontSize = 18.sp,
+                        )
+                    }
                     if (state.isReconnecting) {
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(
@@ -335,22 +343,26 @@ private fun ProgressRow(
 }
 
 /**
- * Tiny muted tag naming which bar is which. Fixed width so the CHAPTER and
- * BOOK rows keep their timestamps and bars column-aligned; sized well under
- * the muted timestamps so it labels the pairing without crowding the row.
- * The ellipsis is the canary if a future tag outgrows the column.
+ * Muted tag naming which bar is which. Fixed width so the CHAPTER and
+ * BOOK rows keep their timestamps and bars column-aligned. 12sp with a
+ * medium weight: the original 10sp was the smallest text on the screen
+ * and the first thing to drop out at 3 metres. Still subordinate to the
+ * 14sp timestamps by staying a size down and in the muted tone; weight
+ * and size carry the contrast lift, not a brighter color. The ellipsis
+ * is the canary if a future tag outgrows the column.
  */
 @Composable
 private fun BarTag(text: String, colors: androidx.tv.material3.ColorScheme) {
     Text(
         text = text,
         color = colors.onSurfaceVariant,
-        fontSize = 10.sp,
+        fontSize = 12.sp,
+        fontWeight = FontWeight.Medium,
         letterSpacing = 1.5.sp,
         maxLines = 1,
         softWrap = false,
         overflow = TextOverflow.Ellipsis,
-        modifier = Modifier.width(68.dp),
+        modifier = Modifier.width(78.dp),
     )
 }
 
@@ -360,8 +372,11 @@ private data class ChaptersControl(val label: String, val onOpen: () -> Unit)
 /**
  * Main control row:
  *
- *   « 30 | Play | 30 » | 1x | Sleep | Mark | Ch n/N
+ *   «30s | Play | 30s» | 1x | Sleep | Mark | Ch n/N
  *
+ * Skip labels come from SkipLabels over the SeekTargets constants, so the
+ * text carries the same value-plus-unit pattern as the 5m jump row and can
+ * never drift from the seek performed.
  * The 30s pair hugs Play (locked primary increment); the utility cluster
  * is ordered by frequency, Sleep ahead of Mark (critic: Mark is the rarer
  * action). Ch n/N stays last: it is the widest and most width-variable
@@ -386,9 +401,9 @@ private fun ControlRow(
     colors: androidx.tv.material3.ColorScheme,
 ) {
     Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
-        ControlButton(label = "« 30", onClick = onSkipBack, colors = colors)
+        ControlButton(label = SkipLabels.back(SeekTargets.SKIP_SECONDS), onClick = onSkipBack, colors = colors)
         ControlButton(label = if (isPlaying) "Pause" else "Play", onClick = onPlayPause, emphasised = true, colors = colors)
-        ControlButton(label = "30 »", onClick = onSkipForward, colors = colors)
+        ControlButton(label = SkipLabels.forward(SeekTargets.SKIP_SECONDS), onClick = onSkipForward, colors = colors)
         ControlButton(label = formatSpeed(speed), onClick = onCycleSpeed, colors = colors)
         ControlButton(label = sleepLabel, onClick = onSleepTimer, colors = colors)
         ControlButton(label = "Mark", onClick = onBookmark, colors = colors)
@@ -406,10 +421,14 @@ private fun ControlRow(
 /**
  * The coarse-jump row under the transport: the labeled 5m long-skip pair
  * (the dual-granularity add) plus Undo when there is a seek to undo.
- * « 5m sits directly under « 30 so the two granularities column-align by
- * direction -- back-jumps stacked left, forward-jumps stacked right. Undo
- * comes last because it appears and disappears; at the row's end it never
- * shifts the long-skip targets the user is aiming at.
+ * The pair is centered in the column, which the control row above spans
+ * almost fully, so it hangs visually under the middle of the transport
+ * cluster instead of dangling off its left edge as an orphaned two-button
+ * row. Undo overlays end-aligned in the same band: it appears and
+ * disappears, and out at the edge it never shifts the long-skip targets
+ * the user is aiming at, while the pair's centering is not disturbed by
+ * its presence. The Undo label is compact ("Undo to 1:23:45") so the
+ * worst monospace case leaves clear air between it and the pair.
  */
 @Composable
 private fun JumpRow(
@@ -419,14 +438,21 @@ private fun JumpRow(
     onUndo: () -> Unit,
     colors: androidx.tv.material3.ColorScheme,
 ) {
-    Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
-        ControlButton(label = "« 5m", onClick = onLongSkipBack, colors = colors)
-        ControlButton(label = "5m »", onClick = onLongSkipForward, colors = colors)
+    Box(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.align(Alignment.Center),
+        ) {
+            ControlButton(label = SkipLabels.back(SeekTargets.LONG_SKIP_SECONDS), onClick = onLongSkipBack, colors = colors)
+            ControlButton(label = SkipLabels.forward(SeekTargets.LONG_SKIP_SECONDS), onClick = onLongSkipForward, colors = colors)
+        }
         if (undoTargetSec != null) {
             ControlButton(
-                label = "Undo seek to ${formatTimestampHms(undoTargetSec)}",
+                label = "Undo to ${formatTimestampHms(undoTargetSec)}",
                 onClick = onUndo,
                 colors = colors,
+                modifier = Modifier.align(Alignment.CenterEnd),
             )
         }
     }
@@ -445,6 +471,7 @@ private fun ControlButton(
     onClick: () -> Unit,
     colors: androidx.tv.material3.ColorScheme,
     emphasised: Boolean = false,
+    modifier: Modifier = Modifier,
 ) {
     Surface(
         onClick = onClick,
@@ -467,7 +494,7 @@ private fun ControlButton(
                 shape = RoundedCornerShape(8.dp),
             ),
         ),
-        modifier = Modifier.height(40.dp),
+        modifier = modifier.height(40.dp),
     ) {
         // fillMaxHeight only, never fillMaxSize: this width-less tv Surface
         // sits in a bounded Row, where a fillMaxSize content Box makes the

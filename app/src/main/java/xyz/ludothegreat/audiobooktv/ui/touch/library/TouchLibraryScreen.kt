@@ -8,10 +8,12 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -45,6 +47,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import xyz.ludothegreat.audiobooktv.domain.Book
 import xyz.ludothegreat.audiobooktv.ui.common.CoverArt
+import xyz.ludothegreat.audiobooktv.ui.common.CoverPercentBadge
 import xyz.ludothegreat.audiobooktv.ui.common.CoverProgressBar
 import xyz.ludothegreat.audiobooktv.ui.common.FinishedCheckBadge
 import xyz.ludothegreat.audiobooktv.ui.library.CardMeta
@@ -169,6 +172,58 @@ private fun SegmentChipRow(segment: StatusSegment, onSegmentSelect: (StatusSegme
     }
 }
 
+/** Cover square plus its status overlays: bar + percent for STARTED, check for FINISHED. */
+@Composable
+private fun TileCover(book: Book, status: StatusSegment, contentAlpha: Float) {
+    val colors = MaterialTheme.colorScheme
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .aspectRatio(1f)
+            .clip(RoundedCornerShape(6.dp)),
+    ) {
+        CoverArt(
+            model = book.coverUrl,
+            contentDescription = book.title,
+            title = book.title,
+            containerColor = colors.surfaceVariant,
+            contentColor = colors.onSurfaceVariant,
+            initialsSize = 32.sp,
+            modifier = Modifier.fillMaxSize().alpha(contentAlpha),
+        )
+        when (status) {
+            StatusSegment.STARTED -> {
+                CoverProgressBar(
+                    fraction = CardMeta.barFraction(book.progressFraction),
+                    trackColor = colors.background,
+                    fillColor = colors.primary,
+                    height = 6.dp,
+                    modifier = Modifier.align(Alignment.BottomCenter),
+                )
+                // Explicit value beside the bar, same cached fraction;
+                // the sliver alone is unreadable at arm's length too.
+                CardMeta.percentLabel(book.progressFraction)?.let { percent ->
+                    CoverPercentBadge(
+                        text = percent,
+                        containerColor = colors.background.copy(alpha = 0.72f),
+                        contentColor = colors.onBackground,
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(end = 5.dp, bottom = 11.dp),
+                    )
+                }
+            }
+            StatusSegment.FINISHED -> FinishedCheckBadge(
+                containerColor = colors.primary,
+                contentColor = colors.onPrimary,
+                size = 20.dp,
+                modifier = Modifier.align(Alignment.TopEnd).padding(6.dp),
+            )
+            StatusSegment.NEW, StatusSegment.ALL -> Unit
+        }
+    }
+}
+
 @Composable
 private fun BookTile(book: Book, onClick: () -> Unit) {
     val colors = MaterialTheme.colorScheme
@@ -188,37 +243,7 @@ private fun BookTile(book: Book, onClick: () -> Unit) {
             .clickable(onClick = onClick)
             .padding(4.dp),
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .aspectRatio(1f)
-                .clip(RoundedCornerShape(6.dp)),
-        ) {
-            CoverArt(
-                model = book.coverUrl,
-                contentDescription = book.title,
-                title = book.title,
-                containerColor = colors.surfaceVariant,
-                contentColor = colors.onSurfaceVariant,
-                initialsSize = 32.sp,
-                modifier = Modifier.fillMaxSize().alpha(contentAlpha),
-            )
-            when (status) {
-                StatusSegment.STARTED -> CoverProgressBar(
-                    fraction = CardMeta.barFraction(book.progressFraction),
-                    trackColor = colors.background,
-                    fillColor = colors.primary,
-                    modifier = Modifier.align(Alignment.BottomCenter),
-                )
-                StatusSegment.FINISHED -> FinishedCheckBadge(
-                    containerColor = colors.primary,
-                    contentColor = colors.onPrimary,
-                    size = 20.dp,
-                    modifier = Modifier.align(Alignment.TopEnd).padding(6.dp),
-                )
-                StatusSegment.NEW, StatusSegment.ALL -> Unit
-            }
-        }
+        TileCover(book = book, status = status, contentAlpha = contentAlpha)
         Text(
             text = SeriesLabel.numberedTitle(book.title, book.series),
             color = colors.onBackground,
@@ -239,16 +264,37 @@ private fun BookTile(book: Book, onClick: () -> Unit) {
                 modifier = Modifier.alpha(contentAlpha),
             )
         }
-        CardMeta.metaLine(book.author, book.durationSec)?.let { line ->
-            Text(
-                text = line,
-                color = colors.onSurfaceVariant,
-                style = MaterialTheme.typography.labelSmall,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                textAlign = TextAlign.Start,
-                modifier = Modifier.alpha(contentAlpha),
-            )
+        CardMeta.metaParts(book.author, book.durationSec)?.let { meta ->
+            // Rigid duration slot + flexible author slot, same rule as the
+            // TV caption: the unweighted duration measures at intrinsic
+            // width first, so only the author can ellipsize and "16h 27m"
+            // always survives in full.
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .alpha(contentAlpha),
+            ) {
+                Text(
+                    text = meta.author ?: "",
+                    color = colors.onSurfaceVariant,
+                    style = MaterialTheme.typography.labelSmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    textAlign = TextAlign.Start,
+                    modifier = Modifier.weight(1f),
+                )
+                if (meta.duration != null) {
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = meta.duration,
+                        color = colors.onSurfaceVariant,
+                        style = MaterialTheme.typography.labelSmall,
+                        maxLines = 1,
+                        softWrap = false,
+                    )
+                }
+            }
         }
     }
 }

@@ -6,8 +6,8 @@ import org.junit.Test
 
 /**
  * Locks the pure card-text logic: total-duration formatting, the
- * author-and-duration meta line built from metadata fields only, and the
- * cover-bar fraction clamp.
+ * two-slot author-and-duration meta row built from metadata fields only,
+ * and the cover-bar fraction clamp.
  */
 class CardMetaTest {
 
@@ -55,30 +55,66 @@ class CardMetaTest {
         assertEquals("22h 16m", CardMeta.durationLabel(80155))
     }
 
-    // ---- metaLine ----
+    // ---- metaParts ----
 
     @Test
-    fun `author and duration join with a middle dot`() {
-        assertEquals("Joe Abercrombie · 22h 16m", CardMeta.metaLine("Joe Abercrombie", 80155))
+    fun `author and duration land in separate slots`() {
+        // Separate slots are the whole fix for duration truncation: the UI
+        // gives the duration a rigid slot only because the two values are
+        // never joined into one ellipsizable string.
+        val parts = CardMeta.metaParts("Joe Abercrombie", 80155)
+        assertEquals(CardMeta.MetaParts(author = "Joe Abercrombie", duration = "22h 16m"), parts)
     }
 
     @Test
-    fun `ABS empty-string author is omitted with no separator`() {
+    fun `ABS empty-string author leaves a duration-only row`() {
         // The untagged-book shape: authorName is "" and only the duration
-        // exists. No guessing, no dangling dot.
-        val line = CardMeta.metaLine("", 42636)
-        assertEquals("11h 51m", line)
+        // exists. No guessing, no fabricated author.
+        val parts = CardMeta.metaParts("", 42636)
+        assertEquals(CardMeta.MetaParts(author = null, duration = "11h 51m"), parts)
     }
 
     @Test
     fun `missing duration leaves the author alone`() {
-        assertEquals("Katherine Addison", CardMeta.metaLine("Katherine Addison", 0))
+        val parts = CardMeta.metaParts("Katherine Addison", 0)
+        assertEquals(CardMeta.MetaParts(author = "Katherine Addison", duration = null), parts)
     }
 
     @Test
-    fun `nothing known drops the whole line`() {
-        assertNull(CardMeta.metaLine(null, 0))
-        assertNull(CardMeta.metaLine("  ", -1))
+    fun `nothing known drops the whole row`() {
+        assertNull(CardMeta.metaParts(null, 0))
+        assertNull(CardMeta.metaParts("  ", -1))
+    }
+
+    // ---- percentLabel ----
+
+    @Test
+    fun `started fraction reads as a rounded percent`() {
+        assertEquals("25%", CardMeta.percentLabel(0.25))
+        assertEquals("34%", CardMeta.percentLabel(0.344))
+        assertEquals("35%", CardMeta.percentLabel(0.346))
+    }
+
+    @Test
+    fun `a barely started book claims 1 percent, never 0`() {
+        // 0.001 rounds to 0, but a STARTED card saying "0%" contradicts
+        // the segment chip that claims it. Floor at 1.
+        assertEquals("1%", CardMeta.percentLabel(0.001))
+    }
+
+    @Test
+    fun `an almost finished book claims 99 percent, never 100`() {
+        // "100%" is the finished badge's claim; a STARTED card must stop
+        // at 99 even when rounding lands on 100.
+        assertEquals("99%", CardMeta.percentLabel(0.9999))
+    }
+
+    @Test
+    fun `fractions outside the started range carry no percent`() {
+        assertNull(CardMeta.percentLabel(0.0))
+        assertNull(CardMeta.percentLabel(-0.2))
+        assertNull(CardMeta.percentLabel(1.0))
+        assertNull(CardMeta.percentLabel(1.5))
     }
 
     // ---- barFraction ----
