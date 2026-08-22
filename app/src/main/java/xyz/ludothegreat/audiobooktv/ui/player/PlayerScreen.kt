@@ -40,6 +40,7 @@ import xyz.ludothegreat.audiobooktv.playback.SeekTargets
 import xyz.ludothegreat.audiobooktv.playback.formatSleepLabel
 import xyz.ludothegreat.audiobooktv.playback.formatTimestampHms
 import xyz.ludothegreat.audiobooktv.ui.common.CoverArt
+import xyz.ludothegreat.audiobooktv.ui.common.describedAction
 
 @Composable
 fun PlayerScreen(
@@ -402,19 +403,49 @@ private fun ControlRow(
     colors: androidx.tv.material3.ColorScheme,
 ) {
     Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
-        ControlButton(label = SkipLabels.back(SeekTargets.SKIP_SECONDS), onClick = onSkipBack, colors = colors)
+        ControlButton(
+            label = SkipLabels.back(SeekTargets.SKIP_SECONDS),
+            onClick = onSkipBack,
+            colors = colors,
+            spokenLabel = "Skip back 30 seconds",
+        )
         ControlButton(label = if (isPlaying) "Pause" else "Play", onClick = onPlayPause, emphasised = true, colors = colors)
-        ControlButton(label = SkipLabels.forward(SeekTargets.SKIP_SECONDS), onClick = onSkipForward, colors = colors)
-        ControlButton(label = formatSpeed(speed), onClick = onCycleSpeed, colors = colors)
-        ControlButton(label = sleepLabel, onClick = onSleepTimer, colors = colors)
-        ControlButton(label = "Mark", onClick = onBookmark, colors = colors)
+        ControlButton(
+            label = SkipLabels.forward(SeekTargets.SKIP_SECONDS),
+            onClick = onSkipForward,
+            colors = colors,
+            spokenLabel = "Skip forward 30 seconds",
+        )
+        ControlButton(
+            label = formatSpeed(speed),
+            onClick = onCycleSpeed,
+            colors = colors,
+            spokenLabel = "Playback speed, ${formatSpeed(speed)}",
+        )
+        ControlButton(
+            label = sleepLabel,
+            onClick = onSleepTimer,
+            colors = colors,
+            spokenLabel = "Sleep timer, $sleepLabel",
+        )
+        ControlButton(
+            label = "Mark",
+            onClick = onBookmark,
+            colors = colors,
+            spokenLabel = "Bookmarks",
+        )
         // Null when the book has no chapter data: chapterless books keep the
         // 6-button row. The label is the live "Ch n/N" counter, which both
         // answers "where am I" without opening the picker and is narrower
         // than the word "Chapters" that used to clip at the screen edge.
         // The ControlButton ellipsis canary still guards label drift.
         if (chaptersControl != null) {
-            ControlButton(label = chaptersControl.label, onClick = chaptersControl.onOpen, colors = colors)
+            ControlButton(
+                label = chaptersControl.label,
+                onClick = chaptersControl.onOpen,
+                colors = colors,
+                spokenLabel = "Chapters, ${chaptersControl.label}",
+            )
         }
     }
 }
@@ -445,8 +476,18 @@ private fun JumpRow(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.align(Alignment.Center),
         ) {
-            ControlButton(label = SkipLabels.back(SeekTargets.LONG_SKIP_SECONDS), onClick = onLongSkipBack, colors = colors)
-            ControlButton(label = SkipLabels.forward(SeekTargets.LONG_SKIP_SECONDS), onClick = onLongSkipForward, colors = colors)
+            ControlButton(
+                label = SkipLabels.back(SeekTargets.LONG_SKIP_SECONDS),
+                onClick = onLongSkipBack,
+                colors = colors,
+                spokenLabel = "Skip back 5 minutes",
+            )
+            ControlButton(
+                label = SkipLabels.forward(SeekTargets.LONG_SKIP_SECONDS),
+                onClick = onLongSkipForward,
+                colors = colors,
+                spokenLabel = "Skip forward 5 minutes",
+            )
         }
         if (undoTargetSec != null) {
             ControlButton(
@@ -473,6 +514,7 @@ private fun ControlButton(
     colors: androidx.tv.material3.ColorScheme,
     emphasised: Boolean = false,
     modifier: Modifier = Modifier,
+    spokenLabel: String = label,
 ) {
     Surface(
         onClick = onClick,
@@ -495,7 +537,7 @@ private fun ControlButton(
                 shape = RoundedCornerShape(8.dp),
             ),
         ),
-        modifier = modifier.height(40.dp),
+        modifier = modifier.height(40.dp).describedAction(spokenLabel),
     ) {
         // fillMaxHeight only, never fillMaxSize: this width-less tv Surface
         // sits in a bounded Row, where a fillMaxSize content Box makes the

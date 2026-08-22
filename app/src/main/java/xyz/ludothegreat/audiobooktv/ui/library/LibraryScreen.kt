@@ -50,6 +50,8 @@ import xyz.ludothegreat.audiobooktv.ui.common.CoverArt
 import xyz.ludothegreat.audiobooktv.ui.common.CoverPercentBadge
 import xyz.ludothegreat.audiobooktv.ui.common.CoverProgressBar
 import xyz.ludothegreat.audiobooktv.ui.common.FinishedCheckBadge
+import xyz.ludothegreat.audiobooktv.ui.common.describedAction
+import xyz.ludothegreat.audiobooktv.ui.common.describedSelectable
 import xyz.ludothegreat.audiobooktv.ui.common.dpadFocusEscape
 
 @Composable
@@ -184,7 +186,9 @@ private fun SegmentChip(label: String, selected: Boolean, onClick: () -> Unit) {
                 shape = RoundedCornerShape(18.dp),
             ),
         ),
-        modifier = Modifier.height(36.dp),
+        modifier = Modifier
+            .height(36.dp)
+            .describedSelectable(label, selected),
     ) {
         // fillMaxHeight only, never fillMaxSize: this width-less tv Surface
         // sits in a bounded Row, where a fillMaxSize content Box makes the
@@ -251,6 +255,13 @@ private fun BookTile(book: Book, onClick: () -> Unit, modifier: Modifier = Modif
     val contentAlpha = if (status == StatusSegment.FINISHED) 0.45f else 1.0f
     val seriesLine = SeriesLabel.seriesLine(book.series)
     val metaParts = CardMeta.metaParts(book.author, book.durationSec)
+    val spoken = CardMeta.spokenSummary(
+        title = SeriesLabel.numberedTitle(book.title, book.series),
+        author = book.author,
+        durationSec = book.durationSec,
+        percent = CardMeta.percentLabel(book.progressFraction),
+        finished = status == StatusSegment.FINISHED,
+    )
 
     Surface(
         onClick = onClick,
@@ -268,7 +279,7 @@ private fun BookTile(book: Book, onClick: () -> Unit, modifier: Modifier = Modif
                 shape = RoundedCornerShape(6.dp),
             ),
         ),
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth().describedAction(spoken),
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
             Box(
