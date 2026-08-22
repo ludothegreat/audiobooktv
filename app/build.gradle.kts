@@ -114,9 +114,13 @@ android {
 // debug-only by design, so the release unit-test variant cannot resolve the
 // activity and every UI test dies at setContent. Run them on debug, which is
 // where they still gate `check`; the pure-logic suites keep running on both.
+//
+// Filtered by JUnit category rather than by class name: a filename glob
+// silently mis-sorts any test whose name drifts, in either direction, and
+// gives no signal when it does.
 tasks.withType<Test>().configureEach {
     if (name.contains("Release")) {
-        exclude("**/*UiTest*")
+        useJUnit { excludeCategories("xyz.ludothegreat.audiobooktv.ComposeUiTest") }
     }
 }
 

@@ -7,9 +7,11 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import org.junit.Rule
 import org.junit.Test
+import org.junit.experimental.categories.Category
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import xyz.ludothegreat.audiobooktv.ComposeUiTest
 import xyz.ludothegreat.audiobooktv.domain.Bookmark
 import xyz.ludothegreat.audiobooktv.playback.BookmarkList
 
@@ -22,12 +24,13 @@ import xyz.ludothegreat.audiobooktv.playback.BookmarkList
  * These run on the JVM under Robolectric, so they gate a push the same way
  * the pure-logic suites do rather than waiting for someone to hold a device.
  */
+@Category(ComposeUiTest::class)
 @RunWith(RobolectricTestRunner::class)
 // Plain Application, not the Hilt one: booting the real graph constructs
 // EncryptedSharedPreferences against AndroidKeyStore, which does not exist on
 // the JVM. These composables take their data as parameters, so the DI graph is
 // not needed to exercise them.
-@Config(sdk = [34], application = android.app.Application::class)
+@Config(sdk = [35], application = android.app.Application::class)
 class TouchBookmarkSheetUiTest {
 
     @get:Rule
