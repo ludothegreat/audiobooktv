@@ -100,9 +100,23 @@ android {
 
     testOptions {
         unitTests {
-            isIncludeAndroidResources = false
+            // Robolectric-backed Compose tests inflate real resources, so
+            // these must be packaged into the unit-test APK. The pure-logic
+            // suites do not care either way.
+            isIncludeAndroidResources = true
             isReturnDefaultValues = true
         }
+    }
+}
+
+// Compose UI tests need androidx.compose.ui:ui-test-manifest, which ships the
+// stub launcher activity createComposeRule() starts. That artifact is
+// debug-only by design, so the release unit-test variant cannot resolve the
+// activity and every UI test dies at setContent. Run them on debug, which is
+// where they still gate `check`; the pure-logic suites keep running on both.
+tasks.withType<Test>().configureEach {
+    if (name.contains("Release")) {
+        exclude("**/*UiTest*")
     }
 }
 
@@ -152,6 +166,12 @@ dependencies {
     implementation(libs.media3.session)
     implementation(libs.media3.datasource.okhttp)
     implementation(libs.guava.listenablefuture)
+    // Compose UI tests run on the JVM through Robolectric: no emulator, so
+    // they gate every push the same way the pure-logic suites already do.
+    testImplementation(platform(libs.androidx.compose.bom))
+    testImplementation(libs.androidx.compose.ui.test.junit4)
+    debugImplementation(libs.androidx.compose.ui.test.manifest)
+    testImplementation(libs.robolectric)
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
