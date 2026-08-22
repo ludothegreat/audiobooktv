@@ -59,6 +59,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -481,6 +482,8 @@ private fun BarTag(text: String) {
     )
 }
 
+internal const val SCRUBBER_TEST_TAG = "scrubber"
+
 @Composable
 internal fun ScrubberRow(
     positionSec: Long,
@@ -507,6 +510,7 @@ internal fun ScrubberRow(
     Column {
         Slider(
             enabled = durationKnown,
+            modifier = Modifier.testTag(SCRUBBER_TEST_TAG),
             value = displaySec.toFloat().coerceIn(0f, maxSec.toFloat()),
             valueRange = 0f..maxSec.toFloat(),
             onValueChange = { v ->

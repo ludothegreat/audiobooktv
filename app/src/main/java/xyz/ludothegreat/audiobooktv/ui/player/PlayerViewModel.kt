@@ -480,7 +480,7 @@ class PlayerViewModel @Inject constructor(
             itemId = itemId,
             serverSec = serverResumeSec,
             durationSec = bookDurationSec,
-            local = positionCacheStore.read(),
+            local = positionCacheStore.read(itemId),
         )
         val resumeSec = decision.positionSec
         ctl.setMediaItems(prep.mediaItems, false)
@@ -856,7 +856,7 @@ class PlayerViewModel @Inject constructor(
             durationSec = durationSec,
         )
         if (confirmed) {
-            positionCacheStore.markClean(itemId, positionSec)
+            positionCacheStore.markClean(itemId)
         } else {
             diagnosticLog.w("Player", "Progress sync unconfirmed; dirty local record kept at ${positionSec}s for $itemId")
         }
@@ -876,7 +876,7 @@ class PlayerViewModel @Inject constructor(
             itemId = itemId,
             serverSec = serverSec,
             durationSec = _state.value.durationSec.toDouble(),
-            local = positionCacheStore.read(),
+            local = positionCacheStore.read(itemId),
         )
         if (decision is ResumeDecision.UseLocalAndPush) {
             diagnosticLog.i(
