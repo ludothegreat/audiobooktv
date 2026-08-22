@@ -100,16 +100,12 @@ fun TouchBookmarkSheet(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.bodyMedium,
                 )
-                else -> LazyColumn(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    items(bookmarks, key = { it.timeSec }) { bookmark ->
-                        BookmarkRow(
-                            bookmark = bookmark,
-                            onClick = { onJump(bookmark) },
-                            onRenameRequest = { renaming = bookmark },
-                            onDelete = { onDelete(bookmark) },
-                        )
-                    }
-                }
+                else -> BookmarkRows(
+                    bookmarks = bookmarks,
+                    onJump = onJump,
+                    onRenameRequest = { renaming = it },
+                    onDelete = onDelete,
+                )
             }
         }
     }
@@ -123,6 +119,32 @@ fun TouchBookmarkSheet(
             },
             onDismiss = { renaming = null },
         )
+    }
+}
+
+/**
+ * The keyed list, lifted out of the sheet so it can be composed under test
+ * without a ModalBottomSheet. The key is Bookmark.timeSec, which is only
+ * unique because BookmarkList.normalize deduplicates by it first; a raw list
+ * with two bookmarks in the same second crashes composition outright. That
+ * pairing is what TouchBookmarkSheetUiTest holds down.
+ */
+@Composable
+internal fun BookmarkRows(
+    bookmarks: List<Bookmark>,
+    onJump: (Bookmark) -> Unit,
+    onRenameRequest: (Bookmark) -> Unit,
+    onDelete: (Bookmark) -> Unit,
+) {
+    LazyColumn(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        items(bookmarks, key = { it.timeSec }) { bookmark ->
+            BookmarkRow(
+                bookmark = bookmark,
+                onClick = { onJump(bookmark) },
+                onRenameRequest = { onRenameRequest(bookmark) },
+                onDelete = { onDelete(bookmark) },
+            )
+        }
     }
 }
 

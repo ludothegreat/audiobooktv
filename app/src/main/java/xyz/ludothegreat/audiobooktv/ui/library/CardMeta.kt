@@ -62,4 +62,28 @@ internal object CardMeta {
         val percent = (progressFraction * 100).roundToInt().coerceIn(1, 99)
         return "$percent%"
     }
+
+    /**
+     * One spoken sentence for a library tile. A screen reader user gets the
+     * same facts a sighted user reads off the card (title, author, length,
+     * how far in) instead of the word "button", and in reading order rather
+     * than badge-then-caption order.
+     */
+    fun spokenSummary(
+        title: String,
+        author: String?,
+        durationSec: Long,
+        percent: String?,
+        finished: Boolean,
+    ): String {
+        val parts = mutableListOf(title)
+        if (!author.isNullOrBlank()) parts += "by $author"
+        durationLabel(durationSec)?.let { parts += it }
+        when {
+            finished -> parts += "finished"
+            percent != null -> parts += "$percent complete"
+            else -> parts += "not started"
+        }
+        return parts.joinToString(", ")
+    }
 }

@@ -482,7 +482,7 @@ private fun BarTag(text: String) {
 }
 
 @Composable
-private fun ScrubberRow(
+internal fun ScrubberRow(
     positionSec: Long,
     durationSec: Long,
     speed: Float,

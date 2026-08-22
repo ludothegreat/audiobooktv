@@ -33,6 +33,7 @@ import androidx.tv.material3.ButtonDefaults
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import xyz.ludothegreat.audiobooktv.R
+import xyz.ludothegreat.audiobooktv.ui.common.describedSelectable
 import xyz.ludothegreat.audiobooktv.ui.library.LibraryScreen
 import xyz.ludothegreat.audiobooktv.ui.player.PlayerScreen
 import xyz.ludothegreat.audiobooktv.ui.settings.SettingsScreen
@@ -135,7 +136,10 @@ private fun NavRail(
                         shape = RoundedCornerShape(8.dp),
                     ),
                 ),
-                modifier = Modifier.fillMaxWidth().height(36.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(36.dp)
+                    .describedSelectable(stringResource(dest.labelRes), isSelected),
                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
             ) {
                 Text(
