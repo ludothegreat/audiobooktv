@@ -84,6 +84,11 @@ jobs:
     permissions:
       contents: write
     steps:
+      # body_path is read from the workspace, so the repo has to be here. The
+      # job previously held only the downloaded APK, which is why v1.3.0
+      # published with an empty body and had to be edited by hand.
+      - uses: actions/checkout@v4
+
       - name: Download release APK artifact
         uses: actions/download-artifact@v4
         with:
@@ -102,8 +107,6 @@ jobs:
           files: audiobooktv-${{ env.TAG }}.apk
           generate_release_notes: true
           fail_on_unmatched_files: true
-          # append_body puts the preamble AFTER the generated notes. body_path
-          # is silently ignored when generate_release_notes is on, which is how
-          # v1.3.0 shipped without its upgrade warning until it was edited in.
-          append_body: true
+          # GitHub pre-pends this body to the generated notes, so the
+          # upgrade warning lands above the changelog.
           body_path: .github/release-preamble.md

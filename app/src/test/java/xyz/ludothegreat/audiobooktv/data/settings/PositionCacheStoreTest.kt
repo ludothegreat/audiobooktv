@@ -1,9 +1,16 @@
 package xyz.ludothegreat.audiobooktv.data.settings
 
+import android.content.Context
+import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.doublePreferencesKey
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.longPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.test.core.app.ApplicationProvider
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -15,10 +22,21 @@ import org.robolectric.annotation.Config
  * replaced it.
  */
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [34], application = android.app.Application::class)
+@Config(sdk = [35], application = android.app.Application::class)
 class PositionCacheStoreTest {
 
     private fun store() = PositionCacheStore(ApplicationProvider.getApplicationContext())
+
+    /**
+     * preferencesDataStore caches one instance per file per classloader, so
+     * records written by one test are still there for the next. Clearing up
+     * front keeps each case independent of the order they run in.
+     */
+    @Before
+    fun clearStore() = runTest {
+        val context: Context = ApplicationProvider.getApplicationContext()
+        context.positionCacheDataStore.edit { it.clear() }
+    }
 
     @Test
     fun `a second book does not evict the first book's unconfirmed position`() = runTest {
@@ -49,6 +67,29 @@ class PositionCacheStoreTest {
 
         assertEquals(1200.0, s.read("book-a")?.positionSec)
         assertNull(s.read("book-b"))
+    }
+
+    @Test
+    fun `a pending record written by the old single-slot format survives the upgrade`() = runTest {
+        val context: Context = ApplicationProvider.getApplicationContext()
+        context.positionCacheDataStore.edit { prefs ->
+            prefs[stringPreferencesKey("position_item_id")] = "book-legacy"
+            prefs[doublePreferencesKey("position_sec")] = 900.0
+            prefs[longPreferencesKey("position_recorded_at_ms")] = 1L
+            prefs[booleanPreferencesKey("position_dirty")] = true
+        }
+        assertEquals(900.0, store().read("book-legacy")?.positionSec)
+    }
+
+    @Test
+    fun `a confirmed record from the old format is not resurrected`() = runTest {
+        val context: Context = ApplicationProvider.getApplicationContext()
+        context.positionCacheDataStore.edit { prefs ->
+            prefs[stringPreferencesKey("position_item_id")] = "book-clean"
+            prefs[doublePreferencesKey("position_sec")] = 900.0
+            prefs[booleanPreferencesKey("position_dirty")] = false
+        }
+        assertNull(store().read("book-clean"))
     }
 
     @Test

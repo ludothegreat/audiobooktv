@@ -1,7 +1,11 @@
 package xyz.ludothegreat.audiobooktv.data.settings
 
 import android.content.Context
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.doublePreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -14,7 +18,10 @@ import xyz.ludothegreat.audiobooktv.playback.LocalPositionRecord
 import javax.inject.Inject
 import javax.inject.Singleton
 
-private val Context.positionCacheDataStore by preferencesDataStore(name = "audiobooktv-position-cache")
+// internal, not private: DataStore permits exactly one instance per file per
+// classloader, so a test that declared its own delegate for this file would
+// crash rather than isolate. Tests reuse this one.
+internal val Context.positionCacheDataStore by preferencesDataStore(name = "audiobooktv-position-cache")
 
 /**
  * Per-book persistence for playheads that have not been confirmed by the
@@ -97,21 +104,57 @@ class PositionCacheStore @Inject constructor(
     }
 
     private suspend fun readAll(): Map<String, Entry> {
-        val raw = store.data.first()[KEY_RECORDS] ?: return emptyMap()
-        return runCatching { json.decodeFromString(entryMapSerializer, raw) }.getOrElse { emptyMap() }
+        val prefs = store.data.first()
+        val raw = prefs[KEY_RECORDS]
+            ?: return legacyRecord(prefs)?.let { mapOf(it.itemId to it) } ?: emptyMap()
+        return runCatching { json.decodeFromString(entryMapSerializer, raw) }
+            .getOrElse { emptyMap() }
+    }
+
+    /**
+     * The single-slot format this replaced. Read once so a user upgrading mid
+     * offline stretch does not lose the very progress this cache exists to
+     * hold; without it the first resume after the update finds nothing pending
+     * and the stale server position wins.
+     */
+    private fun legacyRecord(prefs: Preferences): Entry? {
+        val itemId = prefs[LEGACY_ITEM_ID] ?: return null
+        val positionSec = prefs[LEGACY_POSITION_SEC] ?: return null
+        if (prefs[LEGACY_DIRTY] != true) return null
+        return Entry(
+            itemId = itemId,
+            positionSec = positionSec,
+            recordedAtMs = prefs[LEGACY_RECORDED_AT_MS] ?: 0L,
+            dirty = true,
+        )
     }
 
     private suspend fun mutate(block: (Map<String, Entry>) -> Map<String, Entry>) {
         store.edit { prefs ->
-            val current = prefs[KEY_RECORDS]
-                ?.let { runCatching { json.decodeFromString(entryMapSerializer, it) }.getOrNull() }
-                ?: emptyMap()
+            val stored = prefs[KEY_RECORDS]
+            val current = when {
+                stored != null ->
+                    runCatching { json.decodeFromString(entryMapSerializer, stored) }.getOrElse { emptyMap() }
+                else -> legacyRecord(prefs)?.let { mapOf(it.itemId to it) } ?: emptyMap()
+            }
             prefs[KEY_RECORDS] = json.encodeToString(entryMapSerializer, block(current))
+            // The legacy slot has been folded in; leaving it would let a later
+            // read resurrect a position the new map has already superseded.
+            prefs.remove(LEGACY_ITEM_ID)
+            prefs.remove(LEGACY_POSITION_SEC)
+            prefs.remove(LEGACY_RECORDED_AT_MS)
+            prefs.remove(LEGACY_DIRTY)
         }
     }
 
     private companion object {
         const val MAX_RECORDS = 16
         val KEY_RECORDS = stringPreferencesKey("position_records")
+
+        // Single-slot keys written by builds before this store was per-book.
+        val LEGACY_ITEM_ID = stringPreferencesKey("position_item_id")
+        val LEGACY_POSITION_SEC = doublePreferencesKey("position_sec")
+        val LEGACY_RECORDED_AT_MS = longPreferencesKey("position_recorded_at_ms")
+        val LEGACY_DIRTY = booleanPreferencesKey("position_dirty")
     }
 }
